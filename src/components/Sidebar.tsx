@@ -1,21 +1,39 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, FileText, Bomb, Shield, Target, BarChart2, ClipboardList, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, FileText, Bomb, Shield, Target, BarChart2, ClipboardList, ChevronDown, Home, LogOut } from 'lucide-react';
 import clsx from 'clsx';
 import { useStore } from '../store/useStore';
 
 interface SidebarProps {
   onToggle: (collapsed: boolean) => void;
+  isMobile?: boolean;
 }
 
-export function Sidebar({ onToggle }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export function Sidebar({ onToggle, isMobile = false }: SidebarProps) {
+  const [isCollapsed, setIsCollapsed] = useState(isMobile);
   const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
   const menuNodes = useStore(state => state.menuNodes);
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsCollapsed(true);
+    }
+  }, [isMobile]);
 
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsed;
     setIsCollapsed(newCollapsedState);
     onToggle(newCollapsedState);
+  };
+
+  const handleHomeClick = () => {
+    // Navigate to home page
+    window.location.href = '/';
+  };
+
+  const handleLogout = () => {
+    // Handle logout logic here
+    console.log('User logged out');
+    // Typically would clear auth tokens and redirect to login page
   };
 
   const menuItems = [
@@ -40,13 +58,9 @@ export function Sidebar({ onToggle }: SidebarProps) {
   return (
     <div
       className={clsx(
-        'fixed left-0 border-r transition-all duration-300 z-10 bg-white',
+        'fixed left-0 top-0 border-r transition-all duration-300 z-20 bg-white h-screen flex flex-col',
         isCollapsed ? 'w-12' : 'w-64'
       )}
-      style={{ 
-        top: 'calc(var(--top-nav-height, 48px) + var(--ribbon-height, 0px))', 
-        height: 'calc(100vh - var(--top-nav-height, 48px) - var(--ribbon-height, 0px))' 
-      }}
     >
       <button
         onClick={toggleSidebar}
@@ -55,7 +69,26 @@ export function Sidebar({ onToggle }: SidebarProps) {
         {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      <div className="p-2 overflow-y-auto h-full mt-4">
+      {/* Logo Section */}
+      <div className={clsx(
+        'flex justify-center items-center py-4',
+        isCollapsed ? 'px-1' : 'px-4'
+      )}>
+        <img 
+          src="/vayavya-logo.svg" 
+          alt="Vayavya Labs" 
+          className={clsx(
+            'transition-all duration-300',
+            isCollapsed ? 'w-10' : 'w-48'
+          )}
+        />
+      </div>
+
+      {/* Space between logo and menu items */}
+      <div className="h-4"></div>
+
+      {/* Menu Items - with flex-1 to push bottom buttons down */}
+      <div className="p-2 overflow-y-auto flex-1">
         {menuItems.map((item) => (
           <div key={item.id}>
             <button
@@ -87,6 +120,30 @@ export function Sidebar({ onToggle }: SidebarProps) {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Bottom Navigation Buttons */}
+      <div className="p-2 border-t">
+        <button
+          onClick={handleHomeClick}
+          className={clsx(
+            'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-2',
+            isCollapsed ? 'justify-center' : ''
+          )}
+        >
+          <Home size={20} />
+          {!isCollapsed && <span className="text-sm">Back to Home</span>}
+        </button>
+        <button
+          onClick={handleLogout}
+          className={clsx(
+            'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded text-red-600',
+            isCollapsed ? 'justify-center' : ''
+          )}
+        >
+          <LogOut size={20} />
+          {!isCollapsed && <span className="text-sm">Logout</span>}
+        </button>
       </div>
     </div>
   );

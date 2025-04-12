@@ -36,7 +36,7 @@ export function TopNav() {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50">
+    <div className="sticky top-0 z-10">
       <div className="bg-white border-b">
         <div className="flex items-center px-4">
           {menuItems.map((item) => (

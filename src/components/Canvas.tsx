@@ -26,7 +26,7 @@ export function Canvas() {
   };
 
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full relative" style={{ height: 'calc(100vh - var(--top-nav-height) - var(--ribbon-height) - var(--footer-height))' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -34,11 +34,16 @@ export function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        fitView
       >
         <Background />
         <Controls />
       </ReactFlow>
-      {selectedNode && <NodeEditForm node={selectedNode} />}
+      {selectedNode && (
+        <div className="absolute top-2 right-2 bg-white p-4 rounded shadow-md border max-w-md w-full md:w-1/3 z-10">
+          <NodeEditForm node={selectedNode} />
+        </div>
+      )}
     </div>
   );
 }
