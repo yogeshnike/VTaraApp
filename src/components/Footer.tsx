@@ -11,9 +11,9 @@ export function Footer({ sidebarCollapsed }: FooterProps) {
 
   return (
     <footer 
-      className="bg-white border-t py-2 px-4 text-sm text-gray-600 flex justify-between items-center"
+      className="bg-white border-t py-2 px-6 text-sm text-gray-600 flex justify-between items-center"
       style={{ 
-        marginLeft: sidebarCollapsed ? '3rem' : '16rem',
+        marginLeft: sidebarCollapsed ? '3.5rem' : '16rem',
         transition: 'margin-left 0.3s'
       }}
     >
