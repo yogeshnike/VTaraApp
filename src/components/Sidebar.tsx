@@ -6,9 +6,11 @@ import { useStore } from '../store/useStore';
 interface SidebarProps {
   onToggle: (collapsed: boolean) => void;
   isMobile?: boolean;
+  isHomePage?: boolean;
+  onNavigateToHome?: () => void;
 }
 
-export function Sidebar({ onToggle, isMobile = false }: SidebarProps) {
+export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(isMobile);
   const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
   const menuNodes = useStore(state => state.menuNodes);
@@ -26,8 +28,9 @@ export function Sidebar({ onToggle, isMobile = false }: SidebarProps) {
   };
 
   const handleHomeClick = () => {
-    // Navigate to home page
-    window.location.href = '/';
+    if (onNavigateToHome) {
+      onNavigateToHome();
+    }
   };
 
   const handleLogout = () => {
@@ -89,7 +92,7 @@ export function Sidebar({ onToggle, isMobile = false }: SidebarProps) {
 
       {/* Menu Items - with flex-1 to push bottom buttons down */}
       <div className="p-2 overflow-y-auto flex-1">
-        {menuItems.map((item) => (
+        {!isHomePage && menuItems.map((item) => (
           <div key={item.id}>
             <button
               onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
@@ -124,16 +127,18 @@ export function Sidebar({ onToggle, isMobile = false }: SidebarProps) {
 
       {/* Bottom Navigation Buttons */}
       <div className="p-2 border-t">
-        <button
-          onClick={handleHomeClick}
-          className={clsx(
-            'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-2',
-            isCollapsed ? 'justify-center' : ''
-          )}
-        >
-          <Home size={20} />
-          {!isCollapsed && <span className="text-sm">Back to Home</span>}
-        </button>
+        {!isHomePage && (
+          <button
+            onClick={handleHomeClick}
+            className={clsx(
+              'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-2',
+              isCollapsed ? 'justify-center' : ''
+            )}
+          >
+            <Home size={20} />
+            {!isCollapsed && <span className="text-sm">Back to Home</span>}
+          </button>
+        )}
         <button
           onClick={handleLogout}
           className={clsx(

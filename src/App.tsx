@@ -3,10 +3,12 @@ import { TopNav } from './components/TopNav';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
 import { Footer } from './components/Footer';
+import { HomePage } from './components/HomePage';
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [currentPage, setCurrentPage] = useState<'home' | 'project'>('home');
   
   useEffect(() => {
     const checkScreenSize = () => {
@@ -30,10 +32,23 @@ function App() {
     setSidebarCollapsed(collapsed);
   };
 
+  const navigateToProject = () => {
+    setCurrentPage('project');
+  };
+
+  const navigateToHome = () => {
+    setCurrentPage('home');
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <div className="flex flex-1 relative">
-        <Sidebar onToggle={handleSidebarToggle} isMobile={isMobile} />
+        <Sidebar 
+          onToggle={handleSidebarToggle} 
+          isMobile={isMobile} 
+          isHomePage={currentPage === 'home'}
+          onNavigateToHome={navigateToHome}
+        />
         <div 
           className="flex-1 flex flex-col transition-all duration-300"
           style={{ 
@@ -41,8 +56,14 @@ function App() {
             width: isMobile ? '100%' : 'auto'
           }}
         >
-          <TopNav />
-          <Canvas />
+          {currentPage === 'home' ? (
+            <HomePage onNavigateToProject={navigateToProject} />
+          ) : (
+            <>
+              <TopNav />
+              <Canvas />
+            </>
+          )}
         </div>
       </div>
       <Footer sidebarCollapsed={sidebarCollapsed} />

@@ -1,26 +1,24 @@
-import React from 'react';
+import { useEffect } from 'react';
 
 interface FooterProps {
   sidebarCollapsed: boolean;
 }
 
 export function Footer({ sidebarCollapsed }: FooterProps) {
-  const currentYear = new Date().getFullYear();
-  
+  useEffect(() => {
+    document.documentElement.style.setProperty('--footer-height', '40px');
+  }, []);
+
   return (
     <footer 
-      className="relative border-t py-3 px-4 text-sm text-gray-600 z-10"
+      className="bg-white border-t py-2 px-4 text-sm text-gray-600 flex justify-between items-center"
       style={{ 
-        marginLeft: sidebarCollapsed ? '3rem' : '16rem'
+        marginLeft: sidebarCollapsed ? '3rem' : '16rem',
+        transition: 'margin-left 0.3s'
       }}
     >
-      <div 
-        className="absolute top-0 left-0 h-[1px] bg-gray-200 transition-all duration-300"
-        style={{ width: '100%' }}
-      />
-      <div className="relative z-0 text-right text-xs sm:text-sm">
-        © {currentYear} Vayavya Labs Pvt. Ltd. All rights reserved
-      </div>
+      <div>© {new Date().getFullYear()} Vayavya Labs. All rights reserved.</div>
+      <div>Version 1.0.0</div>
     </footer>
   );
 }
