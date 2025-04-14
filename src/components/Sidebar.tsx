@@ -1,5 +1,21 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, LayoutDashboard, FolderKanban, Settings, Library, LogOut, Home } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  FileText, 
+  Bomb, 
+  Shield, 
+  Target, 
+  BarChart2, 
+  ClipboardList, 
+  ChevronDown, 
+  Home, 
+  LogOut,
+  LayoutDashboard,
+  FolderKanban,
+  Settings,
+  Library
+} from 'lucide-react';
 import clsx from 'clsx';
 import { useStore } from '../store/useStore';
 
@@ -11,15 +27,17 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome }: SidebarProps) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [activeItem, setActiveItem] = useState<string>('projects');
+  const [isCollapsed, setIsCollapsed] = useState(isHomePage || isMobile);
+  const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
+  const menuNodes = useStore(state => state.menuNodes);
 
   useEffect(() => {
     if (isMobile) {
       setIsCollapsed(true);
+    } else if (isHomePage) {
+      setIsCollapsed(true);
     }
-    onToggle(isCollapsed);
-  }, [isMobile, isCollapsed, onToggle]);
+  }, [isMobile, isHomePage]);
 
   const toggleSidebar = () => {
     const newCollapsedState = !isCollapsed;
@@ -37,18 +55,39 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
     console.log('User logged out');
   };
 
-  const menuItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { id: 'projects', icon: FolderKanban, label: 'Projects' },
-    { id: 'configuration', icon: Settings, label: 'Configuration' },
-    { id: 'library', icon: Library, label: 'Library' },
+  const homeMenuItems = [
+    { id: 'Dashboard', icon: LayoutDashboard },
+    { id: 'Projects', icon: FolderKanban },
+    { id: 'Configuration', icon: Settings },
+    { id: 'Library', icon: Library }
   ];
+
+  const projectMenuItems = [
+    {
+      id: 'Item Definition',
+      icon: FileText,
+      subItems: menuNodes
+    },
+    { id: 'Damage Scenarios', icon: Bomb },
+    { id: 'Threat Scenarios', icon: Shield },
+    {
+      id: 'Attack Path Analysis',
+      icon: Target,
+      subItems: ['Attack', 'Attack Trees']
+    },
+    { id: 'Goals, Claims and Requirements', icon: Target },
+    { id: 'Catalogs', icon: ClipboardList },
+    { id: 'Risk Determination and Risk Treatment', icon: BarChart2 },
+    { id: 'Reporting', icon: ClipboardList }
+  ];
+
+  const menuItems = isHomePage ? homeMenuItems : projectMenuItems;
 
   return (
     <div
       className={clsx(
         'fixed left-0 top-0 border-r transition-all duration-300 z-20 bg-white h-screen flex flex-col',
-        isCollapsed ? 'w-16' : 'w-64'
+        isCollapsed ? 'w-12' : 'w-64'
       )}
     >
       <button
@@ -60,67 +99,85 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
 
       {/* Logo Section */}
       <div className={clsx(
-        'flex justify-center items-center py-4 h-32',
-        isCollapsed ? 'px-4' : 'px-4'
+        'flex justify-center items-center py-4',
+        isCollapsed ? 'px-1' : 'px-4'
       )}>
         {isCollapsed ? (
-          <div className="text-sm font-medium text-gray-700 writing-mode-vertical transform rotate-180 ml-2">
+          <div className="writing-mode-vertical text-xs font-medium text-gray-700 whitespace-nowrap transform rotate-180">
             Vayavya Labs
           </div>
         ) : (
           <img 
             src="/vayavya-logo.svg" 
             alt="Vayavya Labs" 
-            className="w-48 transition-all duration-300"
+            className="w-48"
           />
         )}
       </div>
 
+      {/* Space between logo and menu items */}
+      <div className="h-4"></div>
+
       {/* Menu Items */}
-      <div className="flex-1 p-2 overflow-y-auto">
+      <div className="p-2 overflow-y-auto flex-1">
         {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setActiveItem(item.id)}
-            className={clsx(
-              'flex items-center gap-3 w-full p-3 rounded-lg transition-colors',
-              activeItem === item.id 
-                ? 'bg-blue-50 text-blue-600' 
-                : 'hover:bg-gray-100 text-gray-600',
-              isCollapsed ? 'justify-center' : ''
+          <div key={item.id}>
+            <button
+              onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
+              className={clsx(
+                'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-1',
+                expandedItem === item.id && 'bg-gray-100'
+              )}
+            >
+              <item.icon size={20} className="text-gray-600" />
+              {!isCollapsed && (
+                <>
+                  <span className="flex-1 text-left text-sm font-medium text-gray-700">{item.id}</span>
+                  {!isHomePage && item.subItems && item.subItems.length > 0 && (
+                    <ChevronDown size={16} className="text-gray-500" />
+                  )}
+                </>
+              )}
+            </button>
+            {!isHomePage && !isCollapsed && expandedItem === item.id && item.subItems && item.subItems.length > 0 && (
+              <div className="ml-8 mt-1">
+                {item.subItems.map((subItem) => (
+                  <button
+                    key={subItem}
+                    className="flex items-center gap-2 w-full p-2 text-sm hover:bg-gray-100 rounded text-gray-600"
+                  >
+                    {subItem}
+                  </button>
+                ))}
+              </div>
             )}
-          >
-            <item.icon size={20} />
-            {!isCollapsed && (
-              <span className="text-sm font-medium">{item.label}</span>
-            )}
-          </button>
+          </div>
         ))}
       </div>
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation Buttons */}
       <div className="p-2 border-t">
         {!isHomePage && (
           <button
             onClick={handleHomeClick}
             className={clsx(
-              'flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-100 text-gray-600',
+              'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-2',
               isCollapsed ? 'justify-center' : ''
             )}
           >
-            <Home size={20} />
-            {!isCollapsed && <span className="text-sm">Back to Home</span>}
+            <Home size={20} className="text-gray-600" />
+            {!isCollapsed && <span className="text-sm font-medium text-gray-700">Back to Home</span>}
           </button>
         )}
         <button
           onClick={handleLogout}
           className={clsx(
-            'flex items-center gap-3 w-full p-3 rounded-lg hover:bg-gray-100 text-red-600',
+            'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded text-red-600',
             isCollapsed ? 'justify-center' : ''
           )}
         >
           <LogOut size={20} />
-          {!isCollapsed && <span className="text-sm">Logout</span>}
+          {!isCollapsed && <span className="text-sm font-medium">Logout</span>}
         </button>
       </div>
     </div>

@@ -120,7 +120,7 @@ export function HomePage({ onNavigateToProject }: HomePageProps) {
   return (
     <div className="flex flex-col h-full">
       {/* App Title */}
-      <div className="bg-white border-b px-8 py-4 flex items-center justify-between">
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-blue-600">TaraApp</h1>
       </div>
       
