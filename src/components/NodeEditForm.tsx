@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Node } from 'reactflow';
 import { useStore } from '../store/useStore';
-import { X, Trash2 } from 'lucide-react';
+import { X, Trash2, Ungroup } from 'lucide-react';
 
 const NODE_PROPERTIES = [
   'Confidentiality',
@@ -16,7 +16,7 @@ interface NodeEditFormProps {
 }
 
 export function NodeEditForm({ node }: NodeEditFormProps) {
-  const { updateNode, deleteNode, setSelectedNode } = useStore();
+  const { updateNode, deleteNode, setSelectedNode, removeNodeFromGroup, isNodeInGroup } = useStore();
   const [name, setName] = useState(node.data.label);
   const [description, setDescription] = useState(node.data.description);
   const [properties, setProperties] = useState<string[]>(node.data.properties);
@@ -30,6 +30,10 @@ export function NodeEditForm({ node }: NodeEditFormProps) {
     deleteNode(node.id);
   };
 
+  const handleUngroup = () => {
+    removeNodeFromGroup(node.id);
+  };
+
   const handlePropertyToggle = (property: string) => {
     setProperties(prev => 
       prev.includes(property)
@@ -38,11 +42,23 @@ export function NodeEditForm({ node }: NodeEditFormProps) {
     );
   };
 
+  // Check if this node is in a group
+  const parentGroupId = isNodeInGroup(node.id);
+
   return (
     <div className="fixed top-[calc(var(--top-nav-height,48px)+var(--ribbon-height,0px)+1rem)] right-4 w-80 bg-white rounded-lg shadow-lg border p-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">Edit Node</h3>
         <div className="flex gap-2">
+          {parentGroupId && (
+            <button
+              onClick={handleUngroup}
+              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+              title="Remove from group"
+            >
+              <Ungroup size={18} />
+            </button>
+          )}
           <button
             onClick={handleDelete}
             className="p-1.5 text-red-600 hover:bg-red-50 rounded"

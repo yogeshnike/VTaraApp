@@ -9,7 +9,11 @@ interface RibbonProps {
 
 export function Ribbon({ activeItem }: RibbonProps) {
   const [showNodeForm, setShowNodeForm] = useState(false);
-  const addNode = useStore(state => state.addNode);
+  const { addNode, addGroupNode } = useStore();
+
+  const handleAddGroup = () => {
+    addGroupNode();
+  };
 
   return (
     <>
@@ -26,7 +30,10 @@ export function Ribbon({ activeItem }: RibbonProps) {
             <Layout size={18} />
             <span className="text-xs mt-1">New Component</span>
           </button>
-          <button className="flex flex-col items-center px-3 py-1 rounded hover:bg-white">
+          <button 
+            className="flex flex-col items-center px-3 py-1 rounded hover:bg-white"
+            onClick={handleAddGroup}
+          >
             <Group size={18} />
             <span className="text-xs mt-1">Group</span>
           </button>
