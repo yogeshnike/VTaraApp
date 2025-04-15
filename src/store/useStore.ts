@@ -43,7 +43,17 @@ export const useStore = create<FlowState>((set, get) => ({
   },
   onConnect: (connection) => {
     set({
-      edges: addEdge(connection, get().edges),
+      edges: addEdge({
+        ...connection,
+        type: 'step',
+        style: { stroke: '#2563eb', strokeWidth: 2 },
+        markerEnd: {
+          type: 'arrowclosed',
+          width: 20,
+          height: 20,
+          color: '#2563eb',
+        },
+      }, get().edges),
     });
   },
   addNode: ({ name, description, properties }) => {

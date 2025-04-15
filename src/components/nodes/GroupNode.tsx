@@ -105,11 +105,31 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
         </div>
       </div>
       
-      {/* Connection handles */}
-      <Handle type="target" position={Position.Top} className="w-2 h-2 bg-blue-500" />
-      <Handle type="source" position={Position.Bottom} className="w-2 h-2 bg-blue-500" />
-      <Handle type="target" position={Position.Left} className="w-2 h-2 bg-blue-500" />
-      <Handle type="source" position={Position.Right} className="w-2 h-2 bg-blue-500" />
+      {/* Connection handles with improved z-index and positioning */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        className="w-2 h-2 bg-blue-500 z-10" 
+        id="top-target"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        className="w-2 h-2 bg-blue-500 z-10" 
+        id="bottom-source"
+      />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        className="w-2 h-2 bg-blue-500 z-10" 
+        id="left-target"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        className="w-2 h-2 bg-blue-500 z-10" 
+        id="right-source"
+      />
     </>
   );
 }

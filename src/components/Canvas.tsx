@@ -9,6 +9,7 @@ import ReactFlow, {
   NodeDragHandler,
   useReactFlow,
   Panel,
+  EdgeTypes,
 } from 'reactflow';
 import { useStore } from '../store/useStore';
 import { NodeEditForm } from './NodeEditForm';
@@ -19,6 +20,19 @@ import 'reactflow/dist/style.css';
 // Define custom node types
 const nodeTypes: NodeTypes = {
   group: GroupNode,
+};
+
+// Define default edge options for zigzag (step) lines
+const defaultEdgeOptions = {
+  type: 'step',
+  style: { stroke: '#2563eb', strokeWidth: 2 },
+  animated: false,
+  markerEnd: {
+    type: 'arrowclosed',
+    width: 20,
+    height: 20,
+    color: '#2563eb',
+  },
 };
 
 export function Canvas() {
@@ -65,6 +79,7 @@ export function Canvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         fitView
         elementsSelectable={true}
         selectNodesOnDrag={true}
