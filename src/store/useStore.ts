@@ -46,7 +46,13 @@ export const useStore = create<FlowState>((set, get) => ({
       edges: addEdge({
         ...connection,
         type: 'step',
-        style: { stroke: '#2563eb', strokeWidth: 2 }
+        style: { stroke: '#2563eb', strokeWidth: 2 },
+        markerEnd: {
+          type: 'arrowclosed',
+          width: 20,
+          height: 20,
+          color: '#2563eb',
+        },
       }, get().edges),
     });
   },
@@ -82,12 +88,17 @@ export const useStore = create<FlowState>((set, get) => ({
       selectable: true
     };
     set((state) => ({
+      // Only add the node to the nodes array, NOT to the menuNodes array
       nodes: [...state.nodes, newGroupNode],
-      menuNodes: [...state.menuNodes, 'New Group'],
+      // menuNodes remains unchanged
     }));
   },
   updateNode: (nodeId, { name, description, properties }) => {
     set((state) => {
+      const node = state.nodes.find((node) => node.id === nodeId);
+      const oldName = node?.data.label;
+      const isGroup = node?.type === 'group';
+      
       const updatedNodes = state.nodes.map((node) =>
         node.id === nodeId
           ? { 
@@ -101,10 +112,19 @@ export const useStore = create<FlowState>((set, get) => ({
             }
           : node
       );
-      const oldName = state.nodes.find((node) => node.id === nodeId)?.data.label;
-      const updatedMenuNodes = state.menuNodes.map((menuNode) =>
-        menuNode === oldName ? name : menuNode
-      );
+      
+      // Only update menuNodes if this is not a group node
+      let updatedMenuNodes = state.menuNodes;
+      if (!isGroup && oldName) {
+        // Check if the old name was in menuNodes
+        const oldNameIndex = state.menuNodes.indexOf(oldName);
+        if (oldNameIndex !== -1) {
+          // Replace the old name with the new name
+          updatedMenuNodes = [...state.menuNodes];
+          updatedMenuNodes[oldNameIndex] = name;
+        }
+      }
+      
       return {
         nodes: updatedNodes,
         menuNodes: updatedMenuNodes,
@@ -135,13 +155,10 @@ export const useStore = create<FlowState>((set, get) => ({
         });
         
         const filteredNodes = updatedNodes.filter((node) => node.id !== nodeId);
-        const updatedMenuNodes = state.menuNodes.filter(
-          (name) => name !== nodeToDelete?.data.label
-        );
         
+        // Don't remove from menuNodes if it's a group node
         return {
           nodes: filteredNodes,
-          menuNodes: updatedMenuNodes,
           selectedNode: null,
         };
       } else {
@@ -165,9 +182,10 @@ export const useStore = create<FlowState>((set, get) => ({
               node.id === parentGroup.id ? updatedParentGroup : node
             );
             
-            const updatedMenuNodes = state.menuNodes.filter(
-              (name) => name !== nodeToDelete?.data.label
-            );
+            // Only remove from menuNodes if it's not a group node
+            const updatedMenuNodes = nodeToDelete.type !== 'group' 
+              ? state.menuNodes.filter((name) => name !== nodeToDelete?.data.label)
+              : state.menuNodes;
             
             return {
               nodes: nodesWithUpdatedParent,
@@ -178,9 +196,10 @@ export const useStore = create<FlowState>((set, get) => ({
         }
         
         // Regular deletion
-        const updatedMenuNodes = state.menuNodes.filter(
-          (name) => name !== nodeToDelete?.data.label
-        );
+        // Only remove from menuNodes if it's not a group node
+        const updatedMenuNodes = nodeToDelete?.type !== 'group'
+          ? state.menuNodes.filter((name) => name !== nodeToDelete?.data.label)
+          : state.menuNodes;
         
         return {
           nodes: filteredNodes,
