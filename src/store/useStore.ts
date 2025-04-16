@@ -46,13 +46,7 @@ export const useStore = create<FlowState>((set, get) => ({
       edges: addEdge({
         ...connection,
         type: 'step',
-        style: { stroke: '#2563eb', strokeWidth: 2 },
-        markerEnd: {
-          type: 'arrowclosed',
-          width: 20,
-          height: 20,
-          color: '#2563eb',
-        },
+        style: { stroke: '#2563eb', strokeWidth: 2 }
       }, get().edges),
     });
   },
@@ -82,6 +76,10 @@ export const useStore = create<FlowState>((set, get) => ({
         label: 'New Group',
         childNodes: [],
       },
+      // Add draggable property explicitly
+      draggable: true,
+      // Add selectable property explicitly
+      selectable: true
     };
     set((state) => ({
       nodes: [...state.nodes, newGroupNode],
@@ -126,7 +124,11 @@ export const useStore = create<FlowState>((set, get) => ({
             return {
               ...node,
               parentNode: undefined,
-              extent: undefined
+              extent: undefined,
+              position: {
+                x: node.position.x + nodeToDelete.position.x,
+                y: node.position.y + nodeToDelete.position.y
+              }
             };
           }
           return node;
@@ -252,44 +254,77 @@ export const useStore = create<FlowState>((set, get) => ({
   },
   moveNodeToGroup: (nodeId, groupId) => {
     set(state => {
+      // Get the node and group
+      const node = state.nodes.find(n => n.id === nodeId);
+      const groupNode = state.nodes.find(n => n.id === groupId);
+      
+      if (!node || !groupNode) return state;
+      
+      // If the node is a group and we're trying to create a cycle, prevent it
+      if (node.type === 'group') {
+        // Check if the target group is a descendant of this group
+        let currentNode = groupNode;
+        while (currentNode.parentNode) {
+          if (currentNode.parentNode === nodeId) {
+            // Would create a cycle, abort
+            return state;
+          }
+          const parentNode = state.nodes.find(n => n.id === currentNode.parentNode);
+          if (!parentNode) break;
+          currentNode = parentNode;
+        }
+      }
+      
+      // Calculate position relative to the group
+      const relativePosition = {
+        x: node.position.x - groupNode.position.x,
+        y: node.position.y - groupNode.position.y
+      };
+      
       // Update the node to be a child of the group
-      const updatedNodes = state.nodes.map(node => {
-        if (node.id === nodeId) {
-          // Get the group node to calculate relative position
-          const groupNode = state.nodes.find(n => n.id === groupId);
-          if (!groupNode) return node;
-          
-          // Calculate position relative to the group
-          const relativePosition = {
-            x: node.position.x - groupNode.position.x,
-            y: node.position.y - groupNode.position.y
-          };
-          
+      const updatedNodes = state.nodes.map(n => {
+        if (n.id === nodeId) {
           return {
-            ...node,
+            ...n,
             position: relativePosition,
             parentNode: groupId,
-            extent: 'parent'
+            extent: 'parent',
+            // Ensure draggable is true for all nodes, especially groups
+            draggable: true,
+            // Ensure selectable is true
+            selectable: true,
+            // For group nodes, ensure they have z-index to be above parent
+            ...(n.type === 'group' ? { 
+              zIndex: 10,
+              style: {
+                ...n.style,
+                pointerEvents: 'all'
+              }
+            } : {})
           };
         }
-        return node;
+        return n;
       });
       
       // Update the group to include this node in its childNodes array
-      const finalNodes = updatedNodes.map(node => {
-        if (node.id === groupId) {
-          const childNodes = node.data.childNodes || [];
+      const finalNodes = updatedNodes.map(n => {
+        if (n.id === groupId) {
+          const childNodes = n.data.childNodes || [];
           if (!childNodes.includes(nodeId)) {
             return {
-              ...node,
+              ...n,
               data: {
-                ...node.data,
+                ...n.data,
                 childNodes: [...childNodes, nodeId]
+              },
+              style: {
+                ...n.style,
+                pointerEvents: 'all'
               }
             };
           }
         }
-        return node;
+        return n;
       });
       
       return { nodes: finalNodes };

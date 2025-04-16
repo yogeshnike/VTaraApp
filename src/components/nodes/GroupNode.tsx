@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
-import { X } from 'lucide-react';
+import { X, Ungroup } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 
 export interface GroupNodeData {
@@ -13,7 +13,11 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label || 'Group');
   const inputRef = useRef<HTMLInputElement>(null);
-  const { updateNode, deleteNode } = useStore();
+  const { updateNode, deleteNode, removeNodeFromGroup, isNodeInGroup } = useStore();
+
+  // Check if this group is inside another group
+  const parentGroupId = isNodeInGroup(id);
+  const isChildGroup = !!parentGroupId;
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,6 +53,11 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
     deleteNode(id);
   }, [id, deleteNode]);
 
+  const handleUngroup = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    removeNodeFromGroup(id);
+  }, [id, removeNodeFromGroup]);
+
   return (
     <>
       {/* NodeResizer is rendered outside the main group container */}
@@ -58,10 +67,23 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
         isVisible={selected} 
         lineClassName="border-blue-400" 
         handleClassName="h-3 w-3 bg-white border-2 border-blue-400 rounded"
+        onResizeEnd={() => {
+          // Force a small delay to ensure React Flow updates properly
+          setTimeout(() => {
+            document.dispatchEvent(new Event('mouseup'));
+          }, 0);
+        }}
       />
       
       {/* Group container with minimal styling */}
-      <div className="group-node bg-blue-50 border-2 border-blue-200 rounded-md min-w-[200px]">
+      <div 
+        className="group-node bg-blue-50 border-2 border-blue-200 rounded-md min-w-[200px]"
+        style={{ 
+          pointerEvents: 'all',
+          position: 'relative',
+          touchAction: 'none'
+        }}
+      >
         {/* Header bar is a separate element at the top */}
         <div 
           className="group-node-header border-b border-blue-200 h-8 relative"
@@ -89,18 +111,32 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
             )}
           </div>
           
-          {/* Delete button positioned absolutely */}
-          <button 
-            className="absolute right-1 top-1 p-1 rounded-full bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 shadow-sm z-10"
-            onClick={handleDelete}
-            title="Delete group"
-          >
-            <X size={14} strokeWidth={2.5} />
-          </button>
+          {/* Action buttons positioned absolutely */}
+          <div className="absolute right-1 top-1 flex items-center space-x-1 z-10">
+            {/* Ungroup button - only show for child groups */}
+            {isChildGroup && (
+              <button 
+                className="p-1 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-500 hover:text-blue-600 shadow-sm"
+                onClick={handleUngroup}
+                title="Ungroup (move outside parent)"
+              >
+                <Ungroup size={14} strokeWidth={2.5} />
+              </button>
+            )}
+            
+            {/* Delete button */}
+            <button 
+              className="p-1 rounded-full bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-600 shadow-sm"
+              onClick={handleDelete}
+              title="Delete group"
+            >
+              <X size={14} strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
         
         {/* Empty content area - child nodes will be rendered here by ReactFlow */}
-        <div className="p-2">
+        <div className="p-2" style={{ pointerEvents: 'all' }}>
           {/* This area is intentionally left empty for child nodes */}
         </div>
       </div>

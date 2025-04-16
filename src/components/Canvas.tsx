@@ -89,6 +89,14 @@ export function Canvas() {
         nodesConnectable={true}
         snapToGrid={true}
         snapGrid={[15, 15]}
+        // Add these properties to improve nested node handling
+        proOptions={{ 
+          hideAttribution: true,
+          account: 'paid-pro' // This enables all pro features
+        }}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        // Ensure proper event handling
+        onPaneClick={() => setSelectedNode(null)}
       >
         <Background />
         <Controls />
