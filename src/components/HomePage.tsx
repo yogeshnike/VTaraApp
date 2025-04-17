@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { Plus, Upload, Edit2, Trash2, Star } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import config from '../config/config';
+import { projectApi, ProjectCreateRequest } from '../services/api';
+
+
+// Add this near the top of your file, after the imports
+console.log('BACKEND_URL from config:', config.BACKEND_URL);
+console.log('Raw env variable:', import.meta.env.VITE_BACKEND_URL);
 
 interface HomePageProps {
   onNavigateToProject: () => void;
@@ -22,7 +29,9 @@ interface Project {
 export function HomePage({ onNavigateToProject }: HomePageProps) {
   const [activeTab, setActiveTab] = useState<TabType>('projects');
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newProject, setNewProject] = useState({ name: '', description: '' });
+  const [isCreating, setIsCreating] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
   const { addNode } = useStore();
 
   // Sample projects data
@@ -59,35 +68,46 @@ export function HomePage({ onNavigateToProject }: HomePageProps) {
     }
   ]);
 
-  const handleCreateProject = () => {
-    if (newProject.name.trim() === '') return;
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    const project: Project = {
-      id: `project-${Date.now()}`,
-      name: newProject.name,
-      description: newProject.description,
-      riskLevel: 1,
-      vulnerability: 1,
-      status: 'Not-Started',
-      users: ['Current User'],
-      createdOn: new Date().toISOString().split('T')[0]
-    };
+    if (!projectName.trim()) return;
     
-    setProjects([...projects, project]);
+    setIsCreating(true);
     
-    // Add initial node to the project
-    addNode({
-      name: project.name,
-      description: project.description,
-      properties: []
-    });
-    
-    setNewProject({ name: '', description: '' });
-    setShowCreateForm(false);
-    
-    // Navigate to project dashboard
-    onNavigateToProject();
+    try {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      
+      const projectData: ProjectCreateRequest = {
+        name: projectName,
+        description: projectDescription,
+        created_by: config.DEFAULT_USER_ID,
+        start_date: today,
+        status: 'Not-Started',
+        overall_risk: 0,
+        max_vulnerability: 0
+      };
+      
+      console.log('Creating project with data:', projectData);
+      
+      // Uncomment when backend is ready
+      await projectApi.createProject(projectData);
+      
+      // For now, just simulate success
+      console.log('Project created successfully (simulated)');
+      
+      // Navigate to the project
+      onNavigateToProject();
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      // Handle error (show message to user)
+    } finally {
+      setIsCreating(false);
+    }
   };
+
+ 
 
   const handleDeleteProject = (id: string) => {
     setProjects(projects.filter(project => project.id !== id));
@@ -176,8 +196,8 @@ export function HomePage({ onNavigateToProject }: HomePageProps) {
                     </label>
                     <input
                       type="text"
-                      value={newProject.name}
-                      onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter project name"
                     />
@@ -187,8 +207,8 @@ export function HomePage({ onNavigateToProject }: HomePageProps) {
                       Description
                     </label>
                     <textarea
-                      value={newProject.description}
-                      onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                      value={projectDescription}
+                      onChange={(e) => setProjectDescription(e.target.value)}
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Enter project description"
