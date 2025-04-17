@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Node, Edge, Connection, applyNodeChanges, applyEdgeChanges, addEdge, XYPosition } from 'reactflow';
+import { useEffect } from 'react';
 
 interface FlowState {
   nodes: Node[];
@@ -22,6 +23,8 @@ interface FlowState {
   isNodeInGroup: (nodeId: string) => string | null;
   moveNodeToGroup: (nodeId: string, groupId: string) => void;
   removeNodeFromGroup: (nodeId: string) => void;
+  updateGroupDimensions: (groupId: string, width: number, height: number) => void;
+  refreshNodeDraggableState: () => void;
 }
 
 export const useStore = create<FlowState>((set, get) => ({
@@ -66,6 +69,7 @@ export const useStore = create<FlowState>((set, get) => ({
         description,
         properties,
       },
+      draggable: true, // Explicitly set draggable
     };
     set((state) => ({
       nodes: [...state.nodes, newNode],
@@ -348,6 +352,11 @@ export const useStore = create<FlowState>((set, get) => ({
       
       return { nodes: finalNodes };
     });
+    
+    // After moving a node to a group, refresh the draggable state
+    setTimeout(() => {
+      get().refreshNodeDraggableState();
+    }, 50);
   },
   removeNodeFromGroup: (nodeId) => {
     set(state => {
@@ -395,5 +404,110 @@ export const useStore = create<FlowState>((set, get) => ({
       
       return { nodes: finalNodes };
     });
+  },
+  updateGroupDimensions: (groupId, width, height) => {
+    set(state => {
+      // Update the group node dimensions
+      const updatedNodes = state.nodes.map(node => {
+        if (node.id === groupId) {
+          return {
+            ...node,
+            style: {
+              ...node.style,
+              width,
+              height
+            }
+          };
+        }
+        return node;
+      });
+      
+      // After updating group dimensions, we need to ensure all child nodes are still draggable
+      // This is especially important for the first node-group relationship
+      const groupNode = updatedNodes.find(node => node.id === groupId);
+      if (groupNode && groupNode.data.childNodes && groupNode.data.childNodes.length > 0) {
+        return {
+          nodes: updatedNodes.map(node => {
+            if (groupNode.data.childNodes.includes(node.id)) {
+              // Ensure child nodes are explicitly marked as draggable
+              return {
+                ...node,
+                draggable: true,
+                // Refresh the parent-child relationship
+                parentNode: groupId,
+                extent: 'parent'
+              };
+            }
+            return node;
+          })
+        };
+      }
+      
+      return { nodes: updatedNodes };
+    });
+    
+    // After updating dimensions, refresh all nodes' draggable state
+    setTimeout(() => {
+      get().refreshNodeDraggableState();
+    }, 50);
+  },
+  
+  // New function to refresh draggable state for all nodes
+  refreshNodeDraggableState: () => {
+    set(state => {
+      // Create a new array with all nodes having their draggable property refreshed
+      const refreshedNodes = state.nodes.map(node => {
+        // For nodes that are children of groups, ensure they have the correct properties
+        if (node.parentNode) {
+          return {
+            ...node,
+            draggable: true,
+            extent: 'parent',
+            // For group nodes that are children of other groups
+            ...(node.type === 'group' ? {
+              zIndex: 10,
+              style: {
+                ...node.style,
+                pointerEvents: 'all'
+              }
+            } : {})
+          };
+        }
+        // For top-level nodes, just ensure draggable is true
+        return {
+          ...node,
+          draggable: true
+        };
+      });
+      
+      return { nodes: refreshedNodes };
+    });
   }
 }));
+
+// Custom hook to listen for group resize events
+export function useGroupResizeListener() {
+  const updateGroupDimensions = useStore(state => state.updateGroupDimensions);
+  const refreshNodeDraggableState = useStore(state => state.refreshNodeDraggableState);
+  
+  useEffect(() => {
+    const handleGroupResize = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail) {
+        const { id, width, height } = customEvent.detail;
+        updateGroupDimensions(id, width, height);
+        
+        // Add an additional refresh after a delay to ensure ReactFlow has updated
+        setTimeout(() => {
+          refreshNodeDraggableState();
+        }, 100);
+      }
+    };
+    
+    document.addEventListener('group-resized', handleGroupResize);
+    
+    return () => {
+      document.removeEventListener('group-resized', handleGroupResize);
+    };
+  }, [updateGroupDimensions, refreshNodeDraggableState]);
+}

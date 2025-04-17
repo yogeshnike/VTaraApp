@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -11,7 +12,7 @@ import ReactFlow, {
   Panel,
   EdgeTypes,
 } from 'reactflow';
-import { useStore } from '../store/useStore';
+import { useStore, useGroupResizeListener } from '../store/useStore';
 import { NodeEditForm } from './NodeEditForm';
 import GroupNode from './nodes/GroupNode';
 import ConfirmationDialog from './ConfirmationDialog';
@@ -36,6 +37,9 @@ const defaultEdgeOptions = {
 };
 
 export function Canvas() {
+  // Use the custom hook to listen for group resize events
+  useGroupResizeListener();
+  
   const {
     nodes,
     edges,
@@ -48,7 +52,23 @@ export function Canvas() {
     checkNodeIntersection,
     confirmNodeInclusion,
     cancelNodeInclusion,
+    refreshNodeDraggableState,
   } = useStore();
+  
+  const reactFlowInstance = useReactFlow();
+
+  // Force a re-render of the flow when nodes change
+  useEffect(() => {
+    if (nodes.length > 0) {
+      // Small delay to ensure the DOM has updated
+      const timer = setTimeout(() => {
+        reactFlowInstance.fitView();
+        // Refresh draggable state after ReactFlow updates
+        refreshNodeDraggableState();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes.length, reactFlowInstance, refreshNodeDraggableState]);
 
   // Replace single-click with double-click handler
   const onNodeDoubleClick: NodeMouseHandler = (_, node) => {
@@ -65,6 +85,10 @@ export function Canvas() {
   // Handle node drag to check for intersection with group nodes
   const onNodeDragStop: NodeDragHandler = (_, node) => {
     checkNodeIntersection(node.id, node.position);
+    // Refresh draggable state after drag operations
+    setTimeout(() => {
+      refreshNodeDraggableState();
+    }, 50);
   };
 
   return (

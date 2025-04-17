@@ -13,7 +13,7 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data.label || 'Group');
   const inputRef = useRef<HTMLInputElement>(null);
-  const { updateNode, deleteNode, removeNodeFromGroup, isNodeInGroup } = useStore();
+  const { updateNode, deleteNode, removeNodeFromGroup, isNodeInGroup, refreshNodeDraggableState } = useStore();
 
   // Check if this group is inside another group
   const parentGroupId = isNodeInGroup(id);
@@ -67,11 +67,27 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
         isVisible={selected} 
         lineClassName="border-blue-400" 
         handleClassName="h-3 w-3 bg-white border-2 border-blue-400 rounded"
-        onResizeEnd={() => {
+        onResizeEnd={(_, params) => {
           // Force a small delay to ensure React Flow updates properly
           setTimeout(() => {
+            // Dispatch a custom event to notify the store about the resize
+            const resizeEvent = new CustomEvent('group-resized', {
+              detail: {
+                id,
+                width: params.width,
+                height: params.height
+              }
+            });
+            document.dispatchEvent(resizeEvent);
+            
+            // Also dispatch mouseup to ensure ReactFlow internal state is updated
             document.dispatchEvent(new Event('mouseup'));
-          }, 0);
+            
+            // Explicitly refresh node draggable state after resize
+            setTimeout(() => {
+              refreshNodeDraggableState();
+            }, 50);
+          }, 10);
         }}
       />
       

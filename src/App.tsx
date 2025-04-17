@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ReactFlowProvider } from 'reactflow';
 import { TopNav } from './components/TopNav';
 import { Sidebar } from './components/Sidebar';
 import { Canvas } from './components/Canvas';
@@ -59,10 +60,10 @@ function App() {
           {currentPage === 'home' ? (
             <HomePage onNavigateToProject={navigateToProject} />
           ) : (
-            <>
+            <ReactFlowProvider>
               <TopNav />
               <Canvas />
-            </>
+            </ReactFlowProvider>
           )}
         </div>
       </div>
