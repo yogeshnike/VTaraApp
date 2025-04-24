@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Save } from 'lucide-react';
+import { useEffect, useState,  useCallback } from 'react';
+import { Save, Undo2, Redo2 } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -57,6 +57,138 @@ export function Canvas() {
   } = useStore();
   
   const reactFlowInstance = useReactFlow();
+
+
+  // Modify history state to include menuNodes
+  const [history, setHistory] = useState<Array<{
+    nodes: Node[];
+    edges: Edge[];
+    menuNodes: string[];
+  }>>([{
+    nodes: [],
+    edges: [],
+    menuNodes: []
+  }]);
+
+    const [currentStep, setCurrentStep] = useState(0);
+    const [canUndo, setCanUndo] = useState(false);
+    const [canRedo, setCanRedo] = useState(false);
+
+
+
+
+    // Update history when nodes, edges, or menuNodes change
+    useEffect(() => {
+      const { menuNodes } = useStore.getState(); // Get current menuNodes from store
+      const newState = {
+        nodes: [...nodes],
+        edges: [...edges],
+        menuNodes: [...menuNodes]
+      };
+      
+      setHistory(prev => {
+        // Only add to history if the state is different from the last entry
+        const lastState = prev[currentStep];
+        if (JSON.stringify(lastState) !== JSON.stringify(newState)) {
+          // Remove any future states if we're not at the end
+          const newHistory = prev.slice(0, currentStep + 1);
+          return [...newHistory, newState];
+        }
+        return prev;
+      });
+  
+      // Update currentStep if we added a new state
+      setHistory(prev => {
+        if (JSON.stringify(prev[currentStep]) !== JSON.stringify(newState)) {
+          setCurrentStep(prev.length - 1);
+        }
+        return prev;
+      });
+    }, [nodes, edges, currentStep]);
+
+  // Update undo/redo availability
+  useEffect(() => {
+    setCanUndo(currentStep > 0);
+    setCanRedo(currentStep < history.length - 1);
+  }, [currentStep, history.length]);
+
+
+  const handleUndo = useCallback(() => {
+    if (currentStep > 0) {
+      const prevStep = currentStep - 1;
+      const prevState = history[prevStep];
+      
+      // Update the store with the previous state including menuNodes
+      useStore.setState({
+        nodes: prevState.nodes.map(node => ({
+          ...node,
+          // Preserve all node data including STRIDE properties
+          data: {
+            ...node.data,
+            label: node.data.label,
+            description: node.data.description,
+            properties: node.data.properties
+          }
+        })),
+        edges: prevState.edges,
+        menuNodes: prevState.menuNodes // Update menuNodes in store
+      });
+      
+      setCurrentStep(prevStep);
+    }
+  }, [currentStep, history]);
+
+  const handleRedo = useCallback(() => {
+    if (currentStep < history.length - 1) {
+      const nextStep = currentStep + 1;
+      const nextState = history[nextStep];
+      
+      // Update the store with the next state including menuNodes
+      useStore.setState({
+        nodes: nextState.nodes.map(node => ({
+          ...node,
+          // Preserve all node data including STRIDE properties
+          data: {
+            ...node.data,
+            label: node.data.label,
+            description: node.data.description,
+            properties: node.data.properties
+          }
+        })),
+        edges: nextState.edges,
+        menuNodes: nextState.menuNodes // Update menuNodes in store
+      });
+      
+      setCurrentStep(nextStep);
+    }
+  }, [currentStep, history]);
+
+
+  // Add keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
+        if (event.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+        event.preventDefault();
+      } else if ((event.ctrlKey || event.metaKey) && event.key === 'y') {
+        handleRedo();
+        event.preventDefault();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [handleUndo, handleRedo]);
+
+  // Update undo/redo availability
+  useEffect(() => {
+    setCanUndo(currentStep > 0);
+    setCanRedo(currentStep < history.length - 1);
+  }, [currentStep, history.length]);
 
   // Force a re-render of the flow when nodes change
   useEffect(() => {
@@ -119,7 +251,40 @@ export function Canvas() {
   return (
     <div className="h-full w-full relative" style={{ height: 'calc(100vh - var(--top-nav-height) - var(--ribbon-height) - var(--footer-height))' }}>
        {/* Action Bar */}
-       <div className="absolute top-4 right-4 z-50">
+      {/* Action Bar */}
+      <div className="absolute top-4 right-4 z-50 flex gap-2">
+        {/* Undo Button */}
+        <button
+          onClick={handleUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+          className={`
+            flex items-center justify-center w-10 h-10 rounded-md
+            shadow-md border
+            ${!canUndo
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-white text-blue-600 hover:bg-blue-50 border-blue-200'}
+          `}
+        >
+          <Undo2 size={20} />
+        </button>
+        {/* Redo Button */}
+        <button
+          onClick={handleRedo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+          className={`
+            flex items-center justify-center w-10 h-10 rounded-md
+            shadow-md border
+            ${!canRedo
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-white text-blue-600 hover:bg-blue-50 border-blue-200'}
+          `}
+        >
+          <Redo2 size={20} />
+        </button>
+
+        {/* Existing Save Button */}
         <button
           onClick={handleSave}
           disabled={isSaving}
@@ -135,6 +300,7 @@ export function Canvas() {
           {isSaving ? 'Saving...' : 'Save Project'}
         </button>
       </div>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
