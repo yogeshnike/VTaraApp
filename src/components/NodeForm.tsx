@@ -28,7 +28,7 @@ export function NodeForm({ onSubmit, onClose }: NodeFormProps) {
   };
 
   return (
-    <div className="fixed top-[calc(var(--top-nav-height,48px)+var(--ribbon-height,0px)+1rem)] right-4 w-80 bg-white rounded-lg shadow-lg border p-4">
+    <div className="fixed top-[calc(var(--top-nav-height,48px)+var(--ribbon-height,0px)+5rem)] right-4 w-80 bg-white rounded-lg shadow-lg border p-4">
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
           <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
