@@ -68,9 +68,9 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
         lineClassName="border-blue-400" 
         handleClassName="h-3 w-3 bg-white border-2 border-blue-400 rounded"
         onResizeEnd={(_, params) => {
-          // Force a small delay to ensure React Flow updates properly
-          setTimeout(() => {
-            // Dispatch a custom event to notify the store about the resize
+          // Ensure proper event handling sequence
+          const handleResize = () => {
+            // Update dimensions
             const resizeEvent = new CustomEvent('group-resized', {
               detail: {
                 id,
@@ -80,14 +80,12 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
             });
             document.dispatchEvent(resizeEvent);
             
-            // Also dispatch mouseup to ensure ReactFlow internal state is updated
+            // Force ReactFlow update
             document.dispatchEvent(new Event('mouseup'));
-            
-            // Explicitly refresh node draggable state after resize
-            setTimeout(() => {
-              refreshNodeDraggableState();
-            }, 50);
-          }, 10);
+          };
+          
+          // Execute resize handling in next tick
+          setTimeout(handleResize, 0);
         }}
       />
       

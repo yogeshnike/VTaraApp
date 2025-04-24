@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Save } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -91,8 +92,49 @@ export function Canvas() {
     }, 50);
   };
 
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const projectData = {
+        nodes,
+        edges,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Save to backend (you'll need to implement this API call)
+      // await projectApi.saveProject(projectData);
+
+      // Show success notification
+      alert('Project saved successfully!');
+    } catch (error) {
+      console.error('Failed to save project:', error);
+      alert('Failed to save project. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="h-full w-full relative" style={{ height: 'calc(100vh - var(--top-nav-height) - var(--ribbon-height) - var(--footer-height))' }}>
+       {/* Action Bar */}
+       <div className="absolute top-4 right-4 z-50">
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className={`
+            flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md
+            shadow-md border
+            ${isSaving 
+              ? 'bg-gray-100 text-gray-500' 
+              : 'bg-white text-blue-600 hover:bg-blue-50 border-blue-200'}
+          `}
+        >
+          <Save size={16} />
+          {isSaving ? 'Saving...' : 'Save Project'}
+        </button>
+      </div>
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -1,12 +1,5 @@
 import { useState } from 'react';
-
-const NODE_PROPERTIES = [
-  'Confidentiality',
-  'Integrity',
-  'Authenticity',
-  'Non-repudiation',
-  'Availability'
-] as const;
+import { STRIDE_PROPERTIES, STRIDE_LETTERS } from '../constants/stride';
 
 interface NodeFormProps {
   onSubmit: (data: { name: string; description: string; properties: string[] }) => void;
@@ -67,10 +60,10 @@ export function NodeForm({ onSubmit, onClose }: NodeFormProps) {
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Properties
+            STRIDE Properties
           </label>
           <div className="space-y-2">
-            {NODE_PROPERTIES.map((property) => (
+            {STRIDE_PROPERTIES.map((property) => (
               <label key={property} className="flex items-center">
                 <input
                   type="checkbox"
@@ -78,7 +71,12 @@ export function NodeForm({ onSubmit, onClose }: NodeFormProps) {
                   onChange={() => handlePropertyToggle(property)}
                   className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
                 />
-                <span className="text-sm text-gray-700">{property}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-700">{property}</span>
+                  <div className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-100 text-blue-800 text-xs font-semibold">
+                    {STRIDE_LETTERS[property]}
+                  </div>
+                </div>
               </label>
             ))}
           </div>

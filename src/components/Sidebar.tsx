@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useStore } from '../store/useStore';
+import { StrideBadges } from './StrideBadges';
 
 interface SidebarProps {
   onToggle: (collapsed: boolean) => void;
@@ -30,6 +31,15 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
   const [isCollapsed, setIsCollapsed] = useState(isHomePage || isMobile);
   const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
   const menuNodes = useStore(state => state.menuNodes);
+
+  // Add this to get nodes from the store
+  const nodes = useStore(state => state.nodes);
+
+  // Modify the subItems rendering in the menu items section
+  const getNodeProperties = (nodeName: string) => {
+    const node = nodes.find(n => n.data.label === nodeName);
+    return node?.data.properties || [];
+  };
 
   useEffect(() => {
     if (isMobile) {
@@ -141,15 +151,24 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
             </button>
             {!isHomePage && !isCollapsed && expandedItem === item.id && item.subItems && item.subItems.length > 0 && (
               <div className="ml-8 mt-1">
-                {item.subItems.map((subItem) => (
-                  <button
+              {item.subItems.map((subItem) => {
+                const properties = item.id === 'Item Definition' ? getNodeProperties(subItem) : [];
+                
+                return (
+                  <div
                     key={subItem}
-                    className="flex items-center gap-2 w-full p-2 text-sm hover:bg-gray-100 rounded text-gray-600"
+                    className="flex items-center justify-between w-full p-2 text-sm hover:bg-gray-100 rounded text-gray-600"
                   >
-                    {subItem}
-                  </button>
-                ))}
-              </div>
+                    <span>{subItem}</span>
+                    {item.id === 'Item Definition' && properties.length > 0 && (
+                      <div className="ml-2">
+                        <StrideBadges properties={properties} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
             )}
           </div>
         ))}

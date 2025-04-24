@@ -220,8 +220,16 @@ export const useStore = create<FlowState>((set, get) => ({
     const { nodes } = get();
     const movingNode = nodes.find(node => node.id === nodeId);
     
-    // Skip if the node is already in a group
-    if (movingNode?.parentNode) return;
+    // If the node is already in a group but is being dragged,
+    // we should allow the drag to continue but not trigger confirmation
+    if (movingNode?.parentNode) {
+      // Don't show confirmation, but make sure the node stays draggable
+      // Refresh the draggable state to ensure it stays movable within the group
+      setTimeout(() => {
+        get().refreshNodeDraggableState();
+      }, 10);
+      return;
+    }
     
     // Find all group nodes
     const groupNodes = nodes.filter(node => node.type === 'group');
@@ -405,52 +413,71 @@ export const useStore = create<FlowState>((set, get) => ({
       return { nodes: finalNodes };
     });
   },
-  updateGroupDimensions: (groupId, width, height) => {
-    set(state => {
-      // Update the group node dimensions
-      const updatedNodes = state.nodes.map(node => {
-        if (node.id === groupId) {
-          return {
-            ...node,
-            style: {
-              ...node.style,
-              width,
-              height
-            }
-          };
-        }
-        return node;
-      });
-      
-      // After updating group dimensions, we need to ensure all child nodes are still draggable
-      // This is especially important for the first node-group relationship
-      const groupNode = updatedNodes.find(node => node.id === groupId);
-      if (groupNode && groupNode.data.childNodes && groupNode.data.childNodes.length > 0) {
+// ... existing code ...
+
+updateGroupDimensions: (groupId, width, height) => {
+  set(state => {
+    // Update the group node dimensions
+    const updatedNodes = state.nodes.map(node => {
+      if (node.id === groupId) {
         return {
-          nodes: updatedNodes.map(node => {
-            if (groupNode.data.childNodes.includes(node.id)) {
-              // Ensure child nodes are explicitly marked as draggable
-              return {
-                ...node,
-                draggable: true,
-                // Refresh the parent-child relationship
-                parentNode: groupId,
-                extent: 'parent'
-              };
-            }
-            return node;
-          })
+          ...node,
+          style: {
+            ...node.style,
+            width,
+            height,
+            pointerEvents: 'all' // Ensure pointer events are enabled
+          }
         };
       }
-      
-      return { nodes: updatedNodes };
+      return node;
     });
     
-    // After updating dimensions, refresh all nodes' draggable state
+    // After updating group dimensions, we need to ensure all child nodes are still draggable
+    const groupNode = updatedNodes.find(node => node.id === groupId);
+    if (groupNode && groupNode.data.childNodes && groupNode.data.childNodes.length > 0) {
+      return {
+        nodes: updatedNodes.map(node => {
+          if (groupNode.data.childNodes.includes(node.id)) {
+            return {
+              ...node,
+              draggable: true,
+              parentNode: groupId,
+              extent: 'parent',
+              style: {
+                ...node.style,
+                pointerEvents: 'all'
+              },
+              // Ensure z-index is set properly for nested elements
+              zIndex: node.type === 'group' ? 10 : 5
+            };
+          }
+          return node;
+        })
+      };
+    }
+    
+    return { nodes: updatedNodes };
+  });
+  
+  // Chain the refreshes with increasing delays to ensure proper state updates
+  const refreshSequence = () => {
+    // Immediate refresh
+    get().refreshNodeDraggableState();
+    
+    // Secondary refresh after ReactFlow updates
     setTimeout(() => {
       get().refreshNodeDraggableState();
     }, 50);
-  },
+    
+    // Final refresh to ensure stability
+    setTimeout(() => {
+      get().refreshNodeDraggableState();
+    }, 150);
+  };
+  
+  refreshSequence();
+},
   
   // New function to refresh draggable state for all nodes
   refreshNodeDraggableState: () => {
