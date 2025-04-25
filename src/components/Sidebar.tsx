@@ -25,9 +25,10 @@ interface SidebarProps {
   isMobile?: boolean;
   isHomePage?: boolean;
   onNavigateToHome?: () => void;
+  projectName?: string;  // Add this line
 }
 
-export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome }: SidebarProps) {
+export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome, projectName }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(isHomePage || isMobile);
   const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
   const menuNodes = useStore(state => state.menuNodes);
@@ -107,9 +108,8 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
         {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      {/* Logo Section */}
       <div className={clsx(
-        'flex justify-center items-center py-4',
+        'flex flex-col justify-center items-center py-4', // Changed to flex-col
         isCollapsed ? 'px-1' : 'px-4'
       )}>
         {isCollapsed ? (
@@ -117,11 +117,18 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
             Vayavya Labs
           </div>
         ) : (
-          <img 
-            src="/vayavya-logo.svg" 
-            alt="Vayavya Labs" 
-            className="w-48"
-          />
+          <>
+            <img 
+              src="/vayavya-logo.svg" 
+              alt="Vayavya Labs" 
+              className="w-48"
+            />
+            {!isHomePage && projectName && (
+              <div className="mt-4 text-lg font-semibold text-gray-800 text-center">
+                {projectName}
+              </div>
+            )}
+          </>
         )}
       </div>
 
