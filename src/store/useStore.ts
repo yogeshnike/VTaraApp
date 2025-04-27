@@ -52,6 +52,7 @@ export const useStore = create<FlowState>((set, get) => ({
     });
   },
   onEdgesChange: (changes) => {
+    console.log("Here its here")
     set({
       edges: applyEdgeChanges(changes, get().edges),
     });
@@ -243,7 +244,27 @@ addGroupNode: async () => {
     set((state) => {
       // First check if this is a group node and has child nodes
       const nodeToDelete = state.nodes.find((node) => node.id === nodeId);
-      
+
+      // Find all edges connected to this node
+      const edgesToDelete = state.edges.filter(
+        (edge) => edge.source === nodeId || edge.target === nodeId
+      );
+
+          // Delete edges from backend
+      const projectId = window.location.pathname.split('/project/')[1];
+      if (projectId) {
+        edgesToDelete.forEach((edge) => {
+          edgeApi.deleteEdge(projectId, edge.id).catch((error) => {
+            console.error('Failed to delete edge:', error);
+          });
+        });
+      }
+
+      // Filter out the edges connected to the deleted node
+      const remainingEdges = state.edges.filter(
+        (edge) => edge.source !== nodeId && edge.target !== nodeId
+      );
+        
       if (nodeToDelete?.type === 'group' && nodeToDelete.data.childNodes?.length > 0) {
         // Update all child nodes to remove them from this group
         const updatedNodes = state.nodes.map(node => {
@@ -266,6 +287,7 @@ addGroupNode: async () => {
         // Don't remove from menuNodes if it's a group node
         return {
           nodes: filteredNodes,
+          edges: remainingEdges,  // Add this line
           selectedNode: null,
         };
       } else {
@@ -296,6 +318,7 @@ addGroupNode: async () => {
             
             return {
               nodes: nodesWithUpdatedParent,
+              edges: remainingEdges,  // Add this line
               menuNodes: updatedMenuNodes,
               selectedNode: null,
             };
@@ -310,6 +333,7 @@ addGroupNode: async () => {
         
         return {
           nodes: filteredNodes,
+          edges: remainingEdges,  // Add this line
           menuNodes: updatedMenuNodes,
           selectedNode: null,
         };

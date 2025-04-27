@@ -20,10 +20,18 @@ import ConfirmationDialog from './ConfirmationDialog';
 import 'reactflow/dist/style.css';
 import { ReactFlowProvider } from 'reactflow';
 import CustomEdge from './CustomEdge';
+import DefaultNode from './nodes/DefaultNode';
+
+import { Edge as ReactFlowEdge } from 'reactflow';
+
+import { edgeApi } from '../services/api';
+
+
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
   group: GroupNode,
+  default: DefaultNode, // Add the default node type
 };
 
 // Add to your existing edge types
@@ -31,20 +39,22 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
-// Define default edge options for zigzag (step) lines
-const defaultEdgeOptions = {
-  type: 'step',
-  style: { stroke: '#2563eb', strokeWidth: 2 },
-  animated: false,
-  markerEnd: {
-    type: 'arrowclosed',
-    width: 20,
-    height: 20,
-    color: '#2563eb',
-  },
+// Add these new types inside Canvas.tsx
+type EdgePopupState = {
+  edge: ReactFlowEdge | null;
+  position: { x: number; y: number } | null;
 };
 
+// Define default edge options for zigzag (step) lines
+
+
 export function Canvas() {
+
+  // Add these new states
+  const [edgePopup, setEdgePopup] = useState<EdgePopupState>({ edge: null, position: null });
+  const [editingEdgeLabel, setEditingEdgeLabel] = useState<string>('');
+
+
   // Use the custom hook to listen for group resize events
   useGroupResizeListener();
   
@@ -61,6 +71,7 @@ export function Canvas() {
     confirmNodeInclusion,
     cancelNodeInclusion,
     refreshNodeDraggableState,
+    updateEdgeLabel
   } = useStore();
   
   const reactFlowInstance = useReactFlow();
@@ -119,6 +130,59 @@ export function Canvas() {
     setCanRedo(currentStep < history.length - 1);
   }, [currentStep, history.length]);
 
+
+ // Replace the existing onEdgeClick with this new version
+ const onEdgeClick = (event: React.MouseEvent, edge: ReactFlowEdge) => {
+  // Prevent event from bubbling up to prevent unwanted behavior
+  event.preventDefault();
+  event.stopPropagation();
+  console.log(edge)
+  // Set the popup position to the click position
+  setEdgePopup({
+    edge,
+    position: { x: event.clientX, y: event.clientY }
+  });
+  setEditingEdgeLabel(edge.data.label || '');
+};
+
+// Add these new handlers
+const handleEdgeDelete = async (edge: ReactFlowEdge) => {
+  if (window.confirm('Are you sure you want to delete this connection?')) {
+    onEdgesChange([{ id: edge.id, type: 'remove' }]);
+    const projectId = window.location.pathname.split('/project/')[1];
+    if (projectId) {
+      try {
+        await edgeApi.deleteEdge(projectId, edge.id);
+      } catch (error) {
+        console.error('Failed to delete edge:', error);
+        alert('Failed to delete edge. Please try again.');
+      }
+    }
+  }
+  setEdgePopup({ edge: null, position: null });
+};
+
+const handleEdgeLabelUpdate = async (edge: ReactFlowEdge, newLabel: string) => {
+  const projectId = window.location.pathname.split('/project/')[1];
+  if (!projectId) return;
+
+  try {
+    //await edgeApi.updateEdge(projectId, edge.id, { edge_label: newLabel });
+    
+    updateEdgeLabel(edge.id, newLabel);
+
+  } catch (error) {
+    console.error('Failed to update edge label:', error);
+    alert('Failed to update edge label. Please try again.');
+  }
+  setEdgePopup({ edge: null, position: null });
+};
+
+// Add this handler to close the popup when clicking outside
+const handlePaneClick = () => {
+  setEdgePopup({ edge: null, position: null });
+  setSelectedNode(null);
+};
 
   const handleUndo = useCallback(() => {
     if (currentStep > 0) {
@@ -233,6 +297,7 @@ export function Canvas() {
 
   const [isSaving, setIsSaving] = useState(false);
 
+  //Save project button
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -241,10 +306,6 @@ export function Canvas() {
         edges,
         timestamp: new Date().toISOString(),
       };
-
-      // Save to backend (you'll need to implement this API call)
-      // await projectApi.saveProject(projectData);
-
       // Show success notification
       alert('Project saved successfully!');
     } catch (error) {
@@ -314,7 +375,7 @@ export function Canvas() {
         edges={edges}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{
-          type: 'custom',
+          type: 'step',
           animated: false,
           style: { stroke: '#2563eb', strokeWidth: 2 },
           markerEnd: {
@@ -324,6 +385,8 @@ export function Canvas() {
             color: '#2563eb',
           },
         }}
+
+        
         // Allow connections in any direction
         connectOnClick={false}
         connectionMode="loose"
@@ -337,7 +400,9 @@ export function Canvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
-        //defaultEdgeOptions={defaultEdgeOptions}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={handlePaneClick}
+       // defaultEdgeOptions={defaultEdgeOptions}
         fitView
         elementsSelectable={true}
         selectNodesOnDrag={true}
@@ -354,7 +419,7 @@ export function Canvas() {
         }}
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         // Ensure proper event handling
-        onPaneClick={() => setSelectedNode(null)}
+        
       >
         <Background />
         <Controls />
@@ -366,6 +431,52 @@ export function Canvas() {
             </div>
           )}
         </Panel>
+
+        {/* Add the edge popup */}
+        {edgePopup.edge && edgePopup.position && (
+            <div
+              className="fixed z-50 bg-white rounded-lg shadow-lg border border-gray-200"
+              style={{
+                left: edgePopup.position.x,
+                top: edgePopup.position.y,
+                transform: 'translate(-50%, -100%)',
+                marginTop: '-10px'
+              }}
+            >
+              <div className="p-2 space-y-2">
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="text"
+                    value={editingEdgeLabel}
+                    onChange={(e) => setEditingEdgeLabel(e.target.value)}
+                    className="border rounded px-2 py-1 text-sm"
+                    placeholder="Edge label"
+                    autoFocus
+                  />
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEdgeLabelUpdate(edgePopup.edge!, editingEdgeLabel)}
+                      className="px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => handleEdgeDelete(edgePopup.edge!)}
+                      className="px-2 py-1 text-sm bg-red-500 text-white rounded hover:bg-red-600"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setEdgePopup({ edge: null, position: null })}
+                      className="px-2 py-1 text-sm bg-gray-200 rounded hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    </div>
+                </div>
+              </div>
+            </div>
+          )}
       </ReactFlow>
       
       {showConfirmation && (

@@ -23,9 +23,10 @@ export default function CustomEdge({
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data?.label || '');
 
+  /*
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
-    setIsEditing(true);
+    //setIsEditing(true);
   }, []);
 
   const handleBlur = useCallback(() => {
@@ -43,6 +44,8 @@ export default function CustomEdge({
       }
     }
   }, [id, label, data?.label, updateEdgeLabel]);
+
+  */
 
   return (
     <>
@@ -65,14 +68,13 @@ export default function CustomEdge({
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
+              //onBlur={handleBlur}
+              //onKeyDown={handleKeyDown}
               className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               autoFocus
             />
           ) : (
             <div
-              onDoubleClick={handleDoubleClick}
               className="cursor-pointer hover:bg-gray-50 px-2 py-1"
             >
               {data?.label || 'Click to add label'}

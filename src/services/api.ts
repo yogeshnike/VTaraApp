@@ -296,4 +296,13 @@ export const edgeApi = {
       edgeData
     );
   },
+
+  // Add this new method
+  deleteEdge: async (project_id: string, edge_id: string): Promise<void> => {
+    console.log('Deleting edge:', edge_id);
+    return apiRequest<void>(
+      `/${project_id}/edges/${edge_id}`,
+      'DELETE'
+    );
+  }
 };
