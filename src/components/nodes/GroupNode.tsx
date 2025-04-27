@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Handle, Position, NodeProps, NodeResizer } from 'reactflow';
 import { X, Ungroup } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { groupApi } from '../../services/api';
 
 export interface GroupNodeData {
   label: string;
@@ -11,13 +12,42 @@ export interface GroupNodeData {
 
 export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeData>) {
   const [isEditing, setIsEditing] = useState(false);
-  const [label, setLabel] = useState(data.label || 'Group');
+  const [label, setLabel] = useState(data.label || '');
   const inputRef = useRef<HTMLInputElement>(null);
   const { updateNode, deleteNode, removeNodeFromGroup, isNodeInGroup, refreshNodeDraggableState } = useStore();
 
+  // Get project ID from URL
+  const projectId = window.location.pathname.split('/project/')[1];
   // Check if this group is inside another group
   const parentGroupId = isNodeInGroup(id);
   const isChildGroup = !!parentGroupId;
+
+
+  const handleEditComplete = async (newLabel: string) => {
+    if (!projectId) return;
+
+    const groupName = newLabel.trim() || 'Untitled Group';
+    
+    try {
+      // First update in backend
+      await groupApi.updateGroup(projectId, id, {
+        group_name: groupName,
+        parent_group_id: parentGroupId
+      });
+
+      // Then update UI if backend update was successful
+      updateNode(id, { 
+        name: groupName,
+        description: data.description || '', 
+        properties: [] 
+      });
+    } catch (error) {
+      console.error('Failed to update group:', error);
+      // Revert the label to its previous value
+      setLabel(data.label || 'Untitled Group');
+      alert('Failed to update group name. Please try again.');
+    }
+  };
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -37,21 +67,43 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
     });
   }, [id, label, data.description, updateNode]);
 
+
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       setIsEditing(false);
-      updateNode(id, { 
-        name: label, 
-        description: data.description || '', 
-        properties: [] 
-      });
+      handleEditComplete(label);
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setLabel(data.label || 'Untitled Group'); // Revert changes
     }
-  }, [id, label, data.description, updateNode]);
+  }, [label, data.label]);
 
-  const handleDelete = useCallback((e: React.MouseEvent) => {
+  const handleDelete = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteNode(id);
-  }, [id, deleteNode]);
+    if (!projectId) return;
+
+    try {
+      // Check if group has children
+      const hasChildren = data.childNodes && data.childNodes.length > 0;
+      
+      if (hasChildren) {
+        const confirm = window.confirm(
+          'This group contains other items. Deleting it will ungroup all items. Continue?'
+        );
+        if (!confirm) return;
+      }
+
+      // First delete from backend
+      await groupApi.deleteGroup(projectId, id);
+
+      // Then update UI if backend delete was successful
+      deleteNode(id);
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      alert('Failed to delete group. Please try again.');
+    }
+  }, [id, projectId, data.childNodes, deleteNode]);
 
   const handleUngroup = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -112,6 +164,7 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
                 onChange={(e) => setLabel(e.target.value)}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
+                placeholder="Enter group name"
                 className="text-sm font-medium bg-white px-1 py-0.5 rounded border border-blue-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-4/5 mx-auto"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -120,7 +173,7 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
                 className="text-sm font-medium text-blue-700 cursor-pointer px-1 py-0.5 w-full text-center"
                 onDoubleClick={handleDoubleClick}
               >
-                {label}
+                {label || 'Untitled Group'}
               </div>
             )}
           </div>

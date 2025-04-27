@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { Node, Edge, Connection, applyNodeChanges, applyEdgeChanges, addEdge, XYPosition } from 'reactflow';
 import { useEffect } from 'react';
+import { groupApi,nodeApi,edgeApi } from '../services/api';
+import { useParams } from 'react-router-dom';
 
 interface FlowState {
   nodes: Node[];
@@ -11,6 +13,7 @@ interface FlowState {
   nodeToGroup: { nodeId: string; groupId: string } | null;
   onNodesChange: (changes: any) => void;
   onEdgesChange: (changes: any) => void;
+  updateEdgeLabel: (edgeId: string, label: string) => Promise<void>;
   onConnect: (connection: Connection) => void;
   //addNode: (node: { name: string; description: string; properties: string[] }) => void;
   addNode: (node: {
@@ -53,20 +56,65 @@ export const useStore = create<FlowState>((set, get) => ({
       edges: applyEdgeChanges(changes, get().edges),
     });
   },
-  onConnect: (connection) => {
-    set({
-      edges: addEdge({
-        ...connection,
-        type: 'step',
-        style: { stroke: '#2563eb', strokeWidth: 2 },
-        markerEnd: {
-          type: 'arrowclosed',
-          width: 20,
-          height: 20,
-          color: '#2563eb',
-        },
-      }, get().edges),
-    });
+  onConnect: async (connection: Connection) => {
+    const projectId = window.location.pathname.split('/project/')[1];
+    if (!projectId) return;
+  
+    // The source and target should be exactly as the user drew them
+    const newEdge = {
+      ...connection,
+      id: `edge-${Date.now()}`,
+      type: 'custom',
+      data: { label: '' },
+      style: { stroke: '#2563eb', strokeWidth: 2 },
+      markerEnd: {
+        type: 'arrowclosed',
+        width: 20,
+        height: 20,
+        color: '#2563eb',
+      },
+    };
+  
+    try {
+      // Create edge in backend first with the original source and target
+      const edgeResponse = await edgeApi.createEdge(projectId, {
+        source_node_id: connection.source,
+        target_node_id: connection.target,
+        edge_label: ''
+      });
+  
+      // Update UI with the edge from backend
+      set({
+        edges: addEdge({
+          ...newEdge,
+          id: edgeResponse.id,
+        }, get().edges),
+      });
+    } catch (error) {
+      console.error('Failed to create edge:', error);
+      alert('Failed to create connection. Please try again.');
+    }
+  },
+  updateEdgeLabel: async (edgeId: string, label: string) => {
+    const projectId = window.location.pathname.split('/project/')[1];
+    if (!projectId) return;
+
+    try {
+      // Update in backend first
+      await edgeApi.updateEdge(projectId, edgeId, { edge_label: label });
+
+      // Then update UI
+      set((state) => ({
+        edges: state.edges.map((edge) =>
+          edge.id === edgeId
+            ? { ...edge, data: { ...edge.data, label } }
+            : edge
+        ),
+      }));
+    } catch (error) {
+      console.error('Failed to update edge label:', error);
+      alert('Failed to update connection label. Please try again.');
+    }
   },
  // Update the addNode implementation
  addNode: ({ id, name, description, properties, position, group_id }) => {
@@ -90,28 +138,69 @@ export const useStore = create<FlowState>((set, get) => ({
     menuNodes: [...state.menuNodes, name],
   }));
 },
-  addGroupNode: () => {
+addGroupNode: async () => {
+  const projectId = window.location.pathname.split('/project/')[1];
+  const { nodes } = get();
+
+  if (!projectId) {
+    console.error('Project ID not found');
+    return;
+  }
+  
+  try {
+    // Check if there's a selected group that will be the parent
+    const selectedParentGroup = nodes.find(
+      node => node.selected && node.type === 'group'
+    );
+
+    // First create the group in backend to get the ID
+    const groupResponse = await groupApi.createGroup(projectId, {
+      group_name: 'Untitled Group',
+      project_id: projectId,
+      parent_group_id: selectedParentGroup?.id || null
+    });
+
+    // Use the ID from backend response to create the node in UI
     const newGroupNode: Node = {
-      id: `group-${Date.now()}`,
+      id: groupResponse.id, // Use backend-generated ID
       type: 'group',
-      position: { x: Math.random() * 400 + 50, y: Math.random() * 200 + 50 },
+      position: { 
+        x: selectedParentGroup 
+          ? Math.random() * 100 + 50
+          : Math.random() * 400 + 50,
+        y: selectedParentGroup 
+          ? Math.random() * 100 + 50
+          : Math.random() * 200 + 50
+      },
       style: { width: 300, height: 200 },
       data: {
-        label: 'New Group',
+        label: groupResponse.group_name,
         childNodes: [],
       },
-      // Add draggable property explicitly
       draggable: true,
-      // Add selectable property explicitly
-      selectable: true
+      selectable: true,
+      // If there's a selected parent group, set the parentNode property
+      ...(selectedParentGroup && {
+        parentNode: selectedParentGroup.id,
+        extent: 'parent',
+        position: {
+          x: Math.random() * 100 + 50,
+          y: Math.random() * 100 + 50
+        }
+      })
     };
+
+    // Update the UI with the new group node
     set((state) => ({
-      // Only add the node to the nodes array, NOT to the menuNodes array
       nodes: [...state.nodes, newGroupNode],
-      // menuNodes remains unchanged
     }));
-  },
-  updateNode: (nodeId, { name, description, properties }) => {
+
+  } catch (error) {
+    console.error('Failed to create group:', error);
+    alert('Failed to create group. Please try again.');
+  }
+},
+  updateNode: async(nodeId, { name, description, properties }) => {
     set((state) => {
       const node = state.nodes.find((node) => node.id === nodeId);
       const oldName = node?.data.label;
@@ -277,15 +366,40 @@ export const useStore = create<FlowState>((set, get) => ({
       get().removeNodeFromGroup(nodeId);
     }
   },
-  confirmNodeInclusion: () => {
+  confirmNodeInclusion: async () => {
     const { nodeToGroup } = get();
-    if (nodeToGroup) {
-      get().moveNodeToGroup(nodeToGroup.nodeId, nodeToGroup.groupId);
+    const projectId = window.location.pathname.split('/project/')[1];
+  
+    if (!nodeToGroup || !projectId) {
+      return;
     }
-    set({
-      showConfirmation: false,
-      nodeToGroup: null
-    });
+  
+    try {
+      // First update in backend
+      await nodeApi.updateNodeGroup(
+        projectId,
+        nodeToGroup.nodeId,
+        nodeToGroup.groupId
+      );
+  
+      // Then update UI if backend update was successful
+      get().moveNodeToGroup(nodeToGroup.nodeId, nodeToGroup.groupId);
+  
+      // Clear the confirmation state
+      set({
+        showConfirmation: false,
+        nodeToGroup: null
+      });
+    } catch (error) {
+      console.error('Failed to update node group:', error);
+      alert('Failed to move node to group. Please try again.');
+      
+      // Clear the confirmation state but don't update UI
+      set({
+        showConfirmation: false,
+        nodeToGroup: null
+      });
+    }
   },
   cancelNodeInclusion: () => {
     set({
@@ -380,34 +494,40 @@ export const useStore = create<FlowState>((set, get) => ({
       get().refreshNodeDraggableState();
     }, 50);
   },
-  removeNodeFromGroup: (nodeId) => {
-    set(state => {
-      const node = state.nodes.find(n => n.id === nodeId);
-      if (!node || !node.parentNode) return state;
-      
-      const groupId = node.parentNode;
-      
-      // Get the group node
-      const groupNode = state.nodes.find(n => n.id === groupId);
-      if (!groupNode) return state;
-      
-      // Calculate absolute position
-      const absolutePosition = {
-        x: node.position.x + groupNode.position.x,
-        y: node.position.y + groupNode.position.y
-      };
-      
-      // Update the node to remove it from the group
-      const updatedNodes = state.nodes.map(n => {
-        if (n.id === nodeId) {
-          return {
-            ...n,
-            position: absolutePosition,
-            parentNode: undefined,
-            extent: undefined
-          };
-        }
-        return n;
+  removeNodeFromGroup: async (nodeId: string) => {
+    const projectId = window.location.pathname.split('/project/')[1];
+    if (!projectId) return;
+  
+    try {
+      // First update in backend
+      await nodeApi.updateNodeGroup(projectId, nodeId, null);
+  
+      // Then update UI if backend update was successful
+      set(state => {
+        const node = state.nodes.find(n => n.id === nodeId);
+        if (!node || !node.parentNode) return state;
+        
+        const groupId = node.parentNode;
+        const groupNode = state.nodes.find(n => n.id === groupId);
+        if (!groupNode) return state;
+        
+        // Calculate absolute position
+        const absolutePosition = {
+          x: node.position.x + groupNode.position.x,
+          y: node.position.y + groupNode.position.y
+        };
+        
+        // Update the node to remove it from the group
+        const updatedNodes = state.nodes.map(n => {
+          if (n.id === nodeId) {
+            return {
+              ...n,
+              position: absolutePosition,
+              parentNode: undefined,
+              extent: undefined
+            };
+          }
+          return n;
       });
       
       // Update the group to remove this node from its childNodes array
@@ -426,7 +546,11 @@ export const useStore = create<FlowState>((set, get) => ({
       
       return { nodes: finalNodes };
     });
-  },
+  } catch (error) {
+    console.error('Failed to remove node from group:', error);
+    alert('Failed to remove node from group. Please try again.');
+  }
+},
 // ... existing code ...
 
 updateGroupDimensions: (groupId, width, height) => {

@@ -19,10 +19,16 @@ import GroupNode from './nodes/GroupNode';
 import ConfirmationDialog from './ConfirmationDialog';
 import 'reactflow/dist/style.css';
 import { ReactFlowProvider } from 'reactflow';
+import CustomEdge from './CustomEdge';
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
   group: GroupNode,
+};
+
+// Add to your existing edge types
+const edgeTypes = {
+  custom: CustomEdge,
 };
 
 // Define default edge options for zigzag (step) lines
@@ -306,6 +312,24 @@ export function Canvas() {
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={{
+          type: 'custom',
+          animated: false,
+          style: { stroke: '#2563eb', strokeWidth: 2 },
+          markerEnd: {
+            type: 'arrowclosed',
+            width: 20,
+            height: 20,
+            color: '#2563eb',
+          },
+        }}
+        // Allow connections in any direction
+        connectOnClick={false}
+        connectionMode="loose"
+  // Enable connections in all directions
+  connectionRadius={50}
+   defaultMarkerColor="#2563eb"
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
@@ -313,7 +337,7 @@ export function Canvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
+        //defaultEdgeOptions={defaultEdgeOptions}
         fitView
         elementsSelectable={true}
         selectNodesOnDrag={true}

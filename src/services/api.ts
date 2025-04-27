@@ -192,11 +192,108 @@ export const nodeApi = {
       nodeData
     );
   },
+  updateNodeGroup: async (project_id: string, node_id: string, group_id: string | null): Promise<NodeResponse> => {
+    console.log('Updating node group:', { node_id, group_id });
+    return apiRequest<NodeResponse>(
+      `/${project_id}/nodes/${node_id}/group`,
+      'PUT',
+      { group_id }
+    );
+  },
   deleteNode: async (project_id: string, node_id: string): Promise<void> => {
     console.log('Deleting node:', node_id);
     return apiRequest<void>(
       `/${project_id}/nodes/${node_id}`,
       'DELETE'
+    );
+  },
+};
+
+// Add group interfaces
+interface GroupCreateRequest {
+  id: string;
+  group_name: string;
+  project_id: string;
+  parent_group_id?: string;
+}
+
+interface GroupUpdateRequest {
+  group_name: string;
+}
+
+interface GroupResponse {
+  id: string;
+  group_name: string;
+  project_id: string;
+  parent_group_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Add group API methods to existing api object
+export const groupApi = {
+  // Create a new group
+  createGroup: async (project_id: string, groupData: GroupCreateRequest): Promise<GroupResponse> => {
+    console.log('Creating group with data:', groupData);
+    return apiRequest<GroupResponse>(
+      `/${project_id}/groups`,
+      'POST',
+      groupData
+    );
+  },
+
+  // Update an existing group
+  updateGroup: async (project_id: string, group_id: string, groupData: GroupUpdateRequest): Promise<GroupResponse> => {
+    console.log('Updating group with data:', groupData);
+    return apiRequest<GroupResponse>(
+      `/${project_id}/groups/${group_id}`,
+      'PUT',
+      groupData
+    );
+  },
+
+  // Delete a group
+  deleteGroup: async (project_id: string, group_id: string): Promise<void> => {
+    console.log('Deleting group:', group_id);
+    return apiRequest<void>(
+      `/${project_id}/groups/${group_id}`,
+      'DELETE'
+    );
+  }
+};
+
+
+interface EdgeCreateRequest {
+  source_node_id: string;
+  target_node_id: string;
+  edge_label: string;
+}
+
+interface EdgeUpdateRequest {
+  edge_label: string;
+}
+
+interface EdgeResponse {
+  id: string;
+  source_node_id: string;
+  target_node_id: string;
+  edge_label: string;
+}
+
+export const edgeApi = {
+  createEdge: async (project_id: string, edgeData: EdgeCreateRequest): Promise<EdgeResponse> => {
+    return apiRequest<EdgeResponse>(
+      `/${project_id}/edges`,
+      'POST',
+      edgeData
+    );
+  },
+
+  updateEdge: async (project_id: string, edge_id: string, edgeData: EdgeUpdateRequest): Promise<EdgeResponse> => {
+    return apiRequest<EdgeResponse>(
+      `/${project_id}/edges/${edge_id}`,
+      'PUT',
+      edgeData
     );
   },
 };
