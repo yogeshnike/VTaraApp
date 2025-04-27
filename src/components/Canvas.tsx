@@ -37,6 +37,7 @@ const nodeTypes: NodeTypes = {
 // Add to your existing edge types
 const edgeTypes = {
   custom: CustomEdge,
+  smoothstep: CustomEdge,
 };
 
 // Add these new types inside Canvas.tsx
@@ -136,13 +137,13 @@ export function Canvas() {
   // Prevent event from bubbling up to prevent unwanted behavior
   event.preventDefault();
   event.stopPropagation();
-  console.log(edge)
+
   // Set the popup position to the click position
   setEdgePopup({
     edge,
     position: { x: event.clientX, y: event.clientY }
   });
-  setEditingEdgeLabel(edge.data.label || '');
+  setEditingEdgeLabel(edge.label || '');
 };
 
 // Add these new handlers
@@ -375,7 +376,7 @@ const handlePaneClick = () => {
         edges={edges}
         edgeTypes={edgeTypes}
         defaultEdgeOptions={{
-          type: 'step',
+          type: 'smoothstep',
           animated: false,
           style: { stroke: '#2563eb', strokeWidth: 2 },
           markerEnd: {

@@ -4,6 +4,13 @@ import { useEffect } from 'react';
 import { groupApi,nodeApi,edgeApi } from '../services/api';
 import { useParams } from 'react-router-dom';
 
+import CustomEdge from '../components/CustomEdge';
+
+// Add to your existing edge types
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
 interface FlowState {
   nodes: Node[];
   edges: Edge[];
@@ -52,7 +59,6 @@ export const useStore = create<FlowState>((set, get) => ({
     });
   },
   onEdgesChange: (changes) => {
-    console.log("Here its here")
     set({
       edges: applyEdgeChanges(changes, get().edges),
     });
@@ -65,8 +71,8 @@ export const useStore = create<FlowState>((set, get) => ({
     const newEdge = {
       ...connection,
       id: `edge-${Date.now()}`,
-      type: 'custom',
-      data: { label: '' },
+      type: 'smoothstep',  // Change this from 'custom' to 'smoothstep'
+      data: { label: 'Click to add label' },
       style: { stroke: '#2563eb', strokeWidth: 2 },
       markerEnd: {
         type: 'arrowclosed',

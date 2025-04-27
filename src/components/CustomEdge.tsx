@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { EdgeProps, getStraightPath, EdgeLabelRenderer, BaseEdge } from 'reactflow';
+import { EdgeProps, getSmoothStepPath, EdgeLabelRenderer, BaseEdge } from 'reactflow';
 import { useStore } from '../store/useStore';
 import { useState } from 'react';
 
@@ -9,43 +9,26 @@ export default function CustomEdge({
   sourceY,
   targetX,
   targetY,
+  sourcePosition,  // Add these new props
+  targetPosition,  // Add these new props
   data,
   markerEnd,
 }: EdgeProps) {
-  const [edgePath, labelX, labelY] = getStraightPath({
+  // Use getSmoothStepPath instead of getStraightPath for zigzag effect
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
+    sourcePosition,
     targetX,
     targetY,
+    targetPosition,
+    borderRadius: 16, // Add this for smoother corners
   });
 
-  const { updateEdgeLabel } = useStore();
+  
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState(data?.label || '');
 
-  /*
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    //setIsEditing(true);
-  }, []);
-
-  const handleBlur = useCallback(() => {
-    setIsEditing(false);
-    if (label !== data?.label) {
-      updateEdgeLabel(id, label);
-    }
-  }, [id, label, data?.label, updateEdgeLabel]);
-
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      setIsEditing(false);
-      if (label !== data?.label) {
-        updateEdgeLabel(id, label);
-      }
-    }
-  }, [id, label, data?.label, updateEdgeLabel]);
-
-  */
 
   return (
     <>
@@ -61,6 +44,8 @@ export default function CustomEdge({
             borderRadius: '4px',
             fontSize: '12px',
             fontWeight: 500,
+            //boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+            //border: '1px solid #e5e7eb',
           }}
           className="nodrag nopan"
         >
