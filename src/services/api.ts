@@ -1,4 +1,5 @@
 import config from '../config/config';
+import { StridePropertiesJSON } from '../constants/stride';
 
 /**
  * API Service
@@ -138,4 +139,64 @@ export const projectApi = {
     console.log(`Deleting project with ID: ${projectId}`);
     return apiRequest<void>(`/projects/${projectId}`, 'DELETE');
   }
+};
+
+interface NodeCreateData {
+  project_id: string;
+  node_name: string;
+  node_description: string;
+  x_pos: number;
+  y_pos: number;
+  stride_properties: string[];
+  group_id?: string;
+}
+
+interface NodeUpdateData {
+  node_name: string;
+  node_description: string;
+  stride_properties: StridePropertiesJSON;
+}
+
+interface NodeResponse {
+  id: string;
+  node_name: string;
+  x_pos: number;
+  y_pos: number;
+  group_id: string | null;
+}
+
+export const nodeApi = {
+  createNode: async (project_id: string, nodedata: NodeCreateData): Promise<NodeResponse> => {
+    console.log('Creating node with data:', nodedata);
+    /*const response = await fetch(`${API_BASE_URL}/api/nodes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create node');
+    }*/
+
+    return apiRequest<NodeResponse>(`/${project_id}/nodes`, 'POST', nodedata);
+
+    //return response.json();
+  },
+  updateNode: async (project_id: string, node_id: string, nodeData: NodeUpdateData): Promise<NodeResponse> => {
+    console.log('Updating node with data:', nodeData);
+    return apiRequest<NodeResponse>(
+      `/${project_id}/nodes/${node_id}`,
+      'PUT',
+      nodeData
+    );
+  },
+  deleteNode: async (project_id: string, node_id: string): Promise<void> => {
+    console.log('Deleting node:', node_id);
+    return apiRequest<void>(
+      `/${project_id}/nodes/${node_id}`,
+      'DELETE'
+    );
+  },
 };

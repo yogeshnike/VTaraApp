@@ -16,4 +16,15 @@ export const STRIDE_PROPERTIES = [
     'Elevation of Privilege': 'E'
   } as const;
   
+
+  // Add these types to your existing stride.ts file
+export interface StridePropertyData {
+  name: string;
+  selected: boolean;
+  description?: string;  // Optional field for property description
+}
+
+export type StridePropertiesJSON = {
+  [key in typeof STRIDE_PROPERTIES[number]]: StridePropertyData;
+};
 export type StrideProperty = typeof STRIDE_PROPERTIES[number];

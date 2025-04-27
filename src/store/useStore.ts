@@ -12,7 +12,15 @@ interface FlowState {
   onNodesChange: (changes: any) => void;
   onEdgesChange: (changes: any) => void;
   onConnect: (connection: Connection) => void;
-  addNode: (node: { name: string; description: string; properties: string[] }) => void;
+  //addNode: (node: { name: string; description: string; properties: string[] }) => void;
+  addNode: (node: {
+    id: string;
+    name: string;
+    description: string;
+    properties: string[];
+    position: { x: number; y: number };
+    group_id: string | null;
+  }) => void;
   addGroupNode: () => void;
   updateNode: (nodeId: string, data: { name: string; description: string; properties: string[] }) => void;
   deleteNode: (nodeId: string) => void;
@@ -25,6 +33,7 @@ interface FlowState {
   removeNodeFromGroup: (nodeId: string) => void;
   updateGroupDimensions: (groupId: string, width: number, height: number) => void;
   refreshNodeDraggableState: () => void;
+
 }
 
 export const useStore = create<FlowState>((set, get) => ({
@@ -59,23 +68,28 @@ export const useStore = create<FlowState>((set, get) => ({
       }, get().edges),
     });
   },
-  addNode: ({ name, description, properties }) => {
-    const newNode: Node = {
-      id: `node-${Date.now()}`,
-      type: 'default',
-      position: { x: Math.random() * 500, y: Math.random() * 300 },
-      data: {
-        label: name,
-        description,
-        properties,
-      },
-      draggable: true, // Explicitly set draggable
-    };
-    set((state) => ({
-      nodes: [...state.nodes, newNode],
-      menuNodes: [...state.menuNodes, name],
-    }));
-  },
+ // Update the addNode implementation
+ addNode: ({ id, name, description, properties, position, group_id }) => {
+  const newNode: Node = {
+    id,
+    type: 'default',
+    position: {
+      x: position.x,
+      y: position.y
+    },
+    data: {
+      label: name,
+      description,
+      properties,
+    },
+    draggable: true,
+    parentNode: group_id
+  };
+  set((state) => ({
+    nodes: [...state.nodes, newNode],
+    menuNodes: [...state.menuNodes, name],
+  }));
+},
   addGroupNode: () => {
     const newGroupNode: Node = {
       id: `group-${Date.now()}`,

@@ -18,6 +18,7 @@ import { NodeEditForm } from './NodeEditForm';
 import GroupNode from './nodes/GroupNode';
 import ConfirmationDialog from './ConfirmationDialog';
 import 'reactflow/dist/style.css';
+import { ReactFlowProvider } from 'reactflow';
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
@@ -249,6 +250,7 @@ export function Canvas() {
   };
 
   return (
+    <ReactFlowProvider>
     <div className="h-full w-full relative" style={{ height: 'calc(100vh - var(--top-nav-height) - var(--ribbon-height) - var(--footer-height))' }}>
        {/* Action Bar */}
       {/* Action Bar */}
@@ -350,6 +352,7 @@ export function Canvas() {
         />
       )}
     </div>
+    </ReactFlowProvider>
   );
 }
 
