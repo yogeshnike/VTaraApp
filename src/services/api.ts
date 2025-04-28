@@ -211,10 +211,14 @@ export const nodeApi = {
 
 // Add group interfaces
 interface GroupCreateRequest {
-  id: string;
+  id?: string;
   group_name: string;
   project_id: string;
-  parent_group_id?: string;
+  parent_group_id?: string | null;
+  x_pos: number;
+  y_pos: number;
+  width: number;
+  height: number;
 }
 
 interface GroupUpdateRequest {
@@ -267,10 +271,12 @@ interface EdgeCreateRequest {
   source_node_id: string;
   target_node_id: string;
   edge_label: string;
+  style?: any; // Add this line
 }
 
 interface EdgeUpdateRequest {
   edge_label: string;
+  style?: any; // Add this line
 }
 
 interface EdgeResponse {
@@ -305,4 +311,33 @@ export const edgeApi = {
       'DELETE'
     );
   }
+};
+
+export const canvasApi = {
+  // Add a new canvas (project)
+// Add a new canvas (project)
+addCanvas: async (projectId: string, canvasData: any) => {
+  return apiRequest<any>(
+    `/${projectId}/canvas`,
+    'POST',
+    canvasData
+  );
+},
+
+// Update an existing canvas (project)
+updateCanvas: async (projectId: string, canvasData: any) => {
+  return apiRequest<any>(
+    `/${projectId}/canvas`,
+    'PUT',
+    canvasData
+  );
+},
+
+// Delete a canvas (project)
+deleteCanvas: async (projectId: string) => {
+  return apiRequest<any>(
+    `/${projectId}/canvas`,
+    'DELETE'
+  );
+},
 };

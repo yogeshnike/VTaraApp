@@ -4,6 +4,7 @@ import { STRIDE_PROPERTIES, STRIDE_LETTERS, StridePropertiesJSON } from '../cons
 import { nodeApi } from '../services/api';
 import { useStore } from '../store/useStore';
 import { useReactFlow } from 'reactflow'; // Add this import
+import { formatStrideProperties } from '../constants/stride';
 
 interface NodeFormProps {
   onSubmit: (data: { name: string; description: string; properties: string[] }) => void;
@@ -38,20 +39,7 @@ export function NodeForm({ onSubmit, onClose, position }: NodeFormProps) {
     };
   };
 
-         // Convert array of selected properties to JSONB format
-         const formatStrideProperties = (selectedProperties: string[]): StridePropertiesJSON => {
-          const strideJson = {} as StridePropertiesJSON;
-          
-          STRIDE_PROPERTIES.forEach(property => {
-            strideJson[property] = {
-              name: property,
-              selected: selectedProperties.includes(property),
-              description: `${property} threat` // You can add more detailed descriptions if needed
-            };
-          });
-          
-          return strideJson;
-        };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {

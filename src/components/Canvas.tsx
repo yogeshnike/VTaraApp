@@ -24,7 +24,8 @@ import DefaultNode from './nodes/DefaultNode';
 
 import { Edge as ReactFlowEdge } from 'reactflow';
 
-import { edgeApi } from '../services/api';
+import { edgeApi,canvasApi } from '../services/api';
+import { formatStrideProperties } from '../constants/stride';
 
 
 
@@ -298,16 +299,81 @@ const handlePaneClick = () => {
 
   const [isSaving, setIsSaving] = useState(false);
 
-  //Save project button
-  const handleSave = async () => {
+   //Save Projects
+   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const projectData = {
-        nodes,
-        edges,
+      const projectId = window.location.pathname.split('/project/')[1];
+  
+      // --- Normal Nodes ---
+      const normalNodes = nodes
+        .filter(node => node.type !== 'group')
+        .map(node => {
+          // Always ensure stride_properties is in JSONB format
+          let strideProps = node.data.stride_properties;
+          if (!strideProps && Array.isArray(node.data?.properties)) {
+            strideProps = formatStrideProperties(node.data.properties);
+          }
+          // If neither exists, create an empty JSONB
+          if (!strideProps) {
+            strideProps = formatStrideProperties([]);
+          }
+          return {
+            node_name: node.data.label,
+            node_description: node.data.description,
+            x_pos: node.position.x,
+            y_pos: node.position.y,
+            stride_properties: strideProps,
+            group_id: node.parentNode || null,
+            id: node.id,
+            style: node.style
+          };
+        });
+  
+      // --- Group Nodes ---
+      const groupNodes = nodes
+        .filter(node => node.type === 'group')
+        .map(node => {
+          // Always ensure stride_properties is in JSONB format for groups too
+          let strideProps = node.data.stride_properties;
+          if (!strideProps && Array.isArray(node.data?.properties)) {
+            strideProps = formatStrideProperties(node.data.properties);
+          }
+          if (!strideProps) {
+            strideProps = formatStrideProperties([]);
+          }
+          const width = node.style?.width ?? 300;
+          const height = node.style?.height ?? 200;
+          return {
+            group_name: node.data.label,
+            x_pos: node.position.x,
+            y_pos: node.position.y,
+            parent_group_id: node.parentNode || null,
+            id: node.id,
+            width,
+            height,
+            //stride_properties: strideProps,
+            style: node.style
+          };
+        });
+  
+      // --- Edges ---
+      const formattedEdges = edges.map(edge => ({
+        source_node_id: edge.source,
+        target_node_id: edge.target,
+        edge_label: edge.data?.label || '',
+        id: edge.id,
+        style:edge.style
+      }));
+  
+      const canvasData = {
+        nodes: normalNodes,
+        groups: groupNodes,
+        edges: formattedEdges,
         timestamp: new Date().toISOString(),
       };
-      // Show success notification
+      console.log(canvasData)
+      await canvasApi.addCanvas(projectId, canvasData);
       alert('Project saved successfully!');
     } catch (error) {
       console.error('Failed to save project:', error);

@@ -87,7 +87,8 @@ export const useStore = create<FlowState>((set, get) => ({
       const edgeResponse = await edgeApi.createEdge(projectId, {
         source_node_id: connection.source,
         target_node_id: connection.target,
-        edge_label: ''
+        edge_label: '',
+        style: { stroke: '#2563eb', strokeWidth: 2 } // or whatever style you use
       });
   
       // Update UI with the edge from backend
@@ -160,43 +161,44 @@ addGroupNode: async () => {
       node => node.selected && node.type === 'group'
     );
 
+    // Set default or random position and size
+    const x_pos = selectedParentGroup ? Math.random() * 100 + 50 : Math.random() * 400 + 50;
+    const y_pos = selectedParentGroup ? Math.random() * 100 + 50 : Math.random() * 200 + 50;
+    const width = 300;
+    const height = 200;
+
     // First create the group in backend to get the ID
     const groupResponse = await groupApi.createGroup(projectId, {
       group_name: 'Untitled Group',
       project_id: projectId,
-      parent_group_id: selectedParentGroup?.id || null
+      parent_group_id: selectedParentGroup?.id || null,
+      x_pos,
+      y_pos,
+      width,
+      height,
     });
 
-    // Use the ID from backend response to create the node in UI
-    const newGroupNode: Node = {
+     // Use the ID from backend response to create the node in UI
+     const newGroupNode: Node = {
       id: groupResponse.id, // Use backend-generated ID
       type: 'group',
-      position: { 
-        x: selectedParentGroup 
-          ? Math.random() * 100 + 50
-          : Math.random() * 400 + 50,
-        y: selectedParentGroup 
-          ? Math.random() * 100 + 50
-          : Math.random() * 200 + 50
-      },
-      style: { width: 300, height: 200 },
+      position: { x: x_pos, y: y_pos },
+      style: { width, height },
       data: {
         label: groupResponse.group_name,
         childNodes: [],
       },
       draggable: true,
       selectable: true,
-      // If there's a selected parent group, set the parentNode property
       ...(selectedParentGroup && {
         parentNode: selectedParentGroup.id,
         extent: 'parent',
         position: {
-          x: Math.random() * 100 + 50,
-          y: Math.random() * 100 + 50
+          x: x_pos,
+          y: y_pos
         }
       })
     };
-
     // Update the UI with the new group node
     set((state) => ({
       nodes: [...state.nodes, newGroupNode],

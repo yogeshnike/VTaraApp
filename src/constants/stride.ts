@@ -24,6 +24,19 @@ export interface StridePropertyData {
   description?: string;  // Optional field for property description
 }
 
+// Convert array of selected properties to JSONB format
+export function formatStrideProperties(selectedProperties: string[]): StridePropertiesJSON {
+          const strideJson = {} as StridePropertiesJSON;
+          STRIDE_PROPERTIES.forEach(property => {
+            strideJson[property] = {
+              name: property,
+              selected: selectedProperties.includes(property),
+              description: `${property} threat`
+            };
+          });
+          return strideJson;
+}
+
 export type StridePropertiesJSON = {
   [key in typeof STRIDE_PROPERTIES[number]]: StridePropertyData;
 };
