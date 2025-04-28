@@ -145,8 +145,9 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
       <div 
         className="group-node bg-blue-50 border-2 border-blue-200 rounded-md min-w-[200px]"
         style={{ 
-          pointerEvents: 'all',
+          pointerEvents: 'all', // Change to 'none' to allow edge interactions
           position: 'relative',
+          zIndex: 0, // Lower z-index for the content area
           touchAction: 'none'
         }}
       >

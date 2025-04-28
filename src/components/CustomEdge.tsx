@@ -44,10 +44,12 @@ export default function CustomEdge({
             borderRadius: '4px',
             fontSize: '12px',
             fontWeight: 500,
+            zIndex: 1000, // Add high z-index to ensure visibility
             //boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
             //border: '1px solid #e5e7eb',
           }}
           className="nodrag nopan"
+         
         >
           {isEditing ? (
             <input
