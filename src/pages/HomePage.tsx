@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, Edit2, Trash2, Star } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import config from '../config/config';
-import { projectApi, ProjectCreateRequest } from '../services/api';
+import { projectApi, ProjectCreateRequest, ProjectResponse } from '../services/api';
 import { Sidebar } from '../components/Sidebar';
 import { Footer } from '../components/Footer';
+
+import { useEffect } from 'react';
+
 
 type TabType = 'dashboard' | 'projects' | 'configuration' | 'library';
 
@@ -13,14 +16,22 @@ interface Project {
   id: string;
   name: string;
   description: string;
-  riskLevel: number;
-  vulnerability: number;
+  overall_risk: number;
+  max_vulnerability: number;
   status: 'Not-Started' | 'In Progress' | 'Completed';
-  users: string[];
-  createdOn: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  start_date: string;
+  end_date: string | null;
 }
 
 export function HomePage() {
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [activeTab, setActiveTab] = useState<TabType>('projects');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -32,7 +43,7 @@ export function HomePage() {
   const { addNode } = useStore();
 
   // Sample projects data
-  const [projects, setProjects] = useState<Project[]>([
+  /*const [projects, setProjects] = useState<Project[]>([
     {
       id: '1',
       name: 'Vehicle Security Assessment',
@@ -64,6 +75,46 @@ export function HomePage() {
       createdOn: '2023-11-01'
     }
   ]);
+  */
+
+  // Fetch projects when component mounts
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const response = await projectApi.getProjects();
+        
+        // Ensure response is an array before mapping
+        if (Array.isArray(response)) {
+          const transformedProjects = response.map(project => ({
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            overall_risk: project.overall_risk,
+            max_vulnerability: project.max_vulnerability,
+            status: project.status,
+            created_by: project.created_by,
+            created_at: new Date(project.created_at).toLocaleDateString(),
+            updated_at: project.updated_at,
+            start_date: project.start_date,
+            end_date: project.end_date
+          }));
+          setProjects(transformedProjects);
+        } else {
+          throw new Error('Invalid response format from server');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch projects');
+        console.error('Error fetching projects:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, []);
+
 
   const handleSidebarToggle = (collapsed: boolean) => {
     setSidebarCollapsed(collapsed);
@@ -276,91 +327,95 @@ export function HomePage() {
                   
                   {/* Projects List */}
                   <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Project Name
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Overall Risk
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Max Vulnerability
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Users
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Created On
-                          </th>
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {projects.map((project) => (
-                          <tr key={project.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div 
-                                className="text-sm font-medium text-blue-600 cursor-pointer" 
-                                onClick={() => navigateToProject(project.id)}
-                              >
-                                {project.name}
-                              </div>
-                              <div className="text-xs text-gray-500 truncate max-w-xs">
-                                {project.description}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {renderRiskLevel(project.riskLevel)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {renderRiskLevel(project.vulnerability)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(project.status)}`}>
-                                {project.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex -space-x-2 overflow-hidden">
-                                {project.users.map((user, index) => (
-                                  <div
-                                    key={index}
-                                    className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-200 border border-white text-xs font-medium"
-                                    title={user}
-                                  >
-                                    {user.charAt(0)}
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {project.createdOn}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <div className="flex space-x-2">
-                                <button className="text-blue-600 hover:text-blue-800">
-                                  <Edit2 size={16} />
-                                </button>
-                                <button 
-                                  className="text-red-600 hover:text-red-800"
-                                  onClick={() => handleDeleteProject(project.id)}
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+            {isLoading ? (
+              <div className="p-6 text-center">
+                <p className="text-gray-500">Loading projects...</p>
+              </div>
+            ) : error ? (
+              <div className="p-6 text-center">
+                <p className="text-red-500">{error}</p>
+              </div>
+            ) : projects.length === 0 ? (
+              <div className="p-6 text-center">
+                <p className="text-gray-500">No projects found. Create a new project to get started.</p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Project Name
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Overall Risk
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Max Vulnerability
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created By
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Created On
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {projects.map((project) => (
+                    <tr key={project.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div 
+                          className="text-sm font-medium text-blue-600 cursor-pointer" 
+                          onClick={() => navigateToProject(project.id)}
+                        >
+                          {project.name}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate max-w-xs">
+                          {project.description}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {renderRiskLevel(project.overall_risk)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {renderRiskLevel(project.max_vulnerability)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(project.status)}`}>
+                          {project.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {project.created_by}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {project.created_at}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-2">
+                          <button className="text-blue-600 hover:text-blue-800">
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            className="text-red-600 hover:text-red-800"
+                            onClick={() => handleDeleteProject(project.id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">

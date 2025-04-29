@@ -1,5 +1,5 @@
 import { useEffect, useState,  useCallback } from 'react';
-import { Save, Undo2, Redo2 } from 'lucide-react';
+import { Save, Undo2, Redo2, Clock } from 'lucide-react';
 import ReactFlow, {
   Background,
   Controls,
@@ -51,6 +51,11 @@ type EdgePopupState = {
 
 
 export function Canvas() {
+
+  // Add new state for auto-save
+  const [isAutoSaveEnabled, setIsAutoSaveEnabled] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const AUTO_SAVE_INTERVAL = 30000; // 30 seconds - you can adjust this value
 
   // Add these new states
   const [edgePopup, setEdgePopup] = useState<EdgePopupState>({ edge: null, position: null });
@@ -375,6 +380,7 @@ const handlePaneClick = () => {
       console.log(canvasData)
       await canvasApi.addCanvas(projectId, canvasData);
       alert('Project saved successfully!');
+      setLastSaved(new Date());
     } catch (error) {
       console.error('Failed to save project:', error);
       alert('Failed to save project. Please try again.');
@@ -382,6 +388,26 @@ const handlePaneClick = () => {
       setIsSaving(false);
     }
   };
+
+  // Add auto-save effect
+  useEffect(() => {
+      let autoSaveInterval: NodeJS.Timeout;
+  
+      if (isAutoSaveEnabled) {
+        autoSaveInterval = setInterval(async () => {
+          const saved = await handleSave();
+          if (saved) {
+            console.log('Auto-saved at:', new Date().toLocaleTimeString());
+          }
+        }, AUTO_SAVE_INTERVAL);
+  }
+    return () => {
+      if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+      }
+    };
+  }, [isAutoSaveEnabled]);
+
 
   return (
     <ReactFlowProvider>
@@ -420,6 +446,21 @@ const handlePaneClick = () => {
           <Redo2 size={20} />
         </button>
 
+        {/* Auto-save Toggle */}
+        <button
+            onClick={() => setIsAutoSaveEnabled(!isAutoSaveEnabled)}
+            className={`
+              flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md
+              shadow-md border
+              ${isAutoSaveEnabled 
+                ? 'bg-green-50 text-green-600 border-green-200' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'}
+            `}
+            title={`Auto-save is ${isAutoSaveEnabled ? 'enabled' : 'disabled'}`}
+          >
+          <Clock size={16} />
+            Auto-save
+        </button>
         {/* Existing Save Button */}
         <button
           onClick={handleSave}
