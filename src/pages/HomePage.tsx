@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Upload, Edit2, Trash2, Star } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import config from '../config/config';
-import { projectApi, ProjectCreateRequest, ProjectResponse } from '../services/api';
+import { projectApi, ProjectCreateRequest, ProjectResponse, canvasApi } from '../services/api';
 import { Sidebar } from '../components/Sidebar';
 import { Footer } from '../components/Footer';
 
@@ -42,40 +42,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const { addNode } = useStore();
 
-  // Sample projects data
-  /*const [projects, setProjects] = useState<Project[]>([
-    {
-      id: '1',
-      name: 'Vehicle Security Assessment',
-      description: 'Comprehensive security assessment for connected vehicles',
-      riskLevel: 4,
-      vulnerability: 3,
-      status: 'In Progress',
-      users: ['John D.', 'Sarah M.'],
-      createdOn: '2023-10-15'
-    },
-    {
-      id: '2',
-      name: 'IoT Device Certification',
-      description: 'Security certification for IoT devices',
-      riskLevel: 2,
-      vulnerability: 1,
-      status: 'Completed',
-      users: ['Mike T.'],
-      createdOn: '2023-09-22'
-    },
-    {
-      id: '3',
-      name: 'Smart Home System',
-      description: 'Risk assessment for smart home ecosystem',
-      riskLevel: 3,
-      vulnerability: 4,
-      status: 'Not-Started',
-      users: ['Emily R.', 'David K.', 'Lisa P.'],
-      createdOn: '2023-11-01'
-    }
-  ]);
-  */
+
 
   // Fetch projects when component mounts
   useEffect(() => {
@@ -120,8 +87,26 @@ export function HomePage() {
     setSidebarCollapsed(collapsed);
   };
 
-  const navigateToProject = (projectId?: string) => {
-    navigate(projectId ? `/project/${projectId}` : '/project');
+  const navigateToProject = async (projectId?: string) => {
+    try {
+      // First get the project details
+      const projectData = await projectApi.getProject(projectId);
+      
+      // Then get the canvas data (nodes, edges, groups)
+      const canvasData = await canvasApi.getCanvas(projectId);
+      
+      // Navigate to project page with all necessary data
+      navigate(`/project/${projectId}`, {
+        state: {
+          projectName: projectData.name,
+          projectId: projectId,
+          canvasData: canvasData
+        }
+      });
+    } catch (error) {
+      console.error('Error loading project:', error);
+      alert('Failed to load project. Please try again.');
+    }
   };
 
   const handleCreateProject = async (e: React.FormEvent) => {

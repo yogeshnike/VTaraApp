@@ -82,6 +82,8 @@ async function apiRequest<T>(
   }
 }
 
+
+
 // Project related API interfaces
 export interface ProjectCreateRequest {
   name: string;
@@ -271,6 +273,8 @@ interface EdgeCreateRequest {
   source_node_id: string;
   target_node_id: string;
   edge_label: string;
+  source_handle?: string; // Add this for source position (e.g., 'top', 'bottom', 'left', 'right')
+  target_handle?: string; // Add this for target position
   style?: any; // Add this line
 }
 
@@ -284,6 +288,9 @@ interface EdgeResponse {
   source_node_id: string;
   target_node_id: string;
   edge_label: string;
+  source_handle?: string; // Add this
+  target_handle?: string; // Add this
+  style?: any;
 }
 
 export const edgeApi = {
@@ -313,15 +320,103 @@ export const edgeApi = {
   }
 };
 
+
+// First, add this new function to handle FormData requests
+async function apiFormDataRequest<T>(
+  endpoint: string,
+  method: string = 'POST',
+  formData: FormData
+): Promise<T> {
+  const url = `${config.BACKEND_URL}${endpoint}`;
+  
+  console.log(`Making ${method} FormData request to: ${url}`);
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), config.API_TIMEOUT);
+    
+    const response = await fetch(url, {
+      method,
+      // Don't set Content-Type header - browser will set it automatically for FormData
+      body: formData,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new ApiError(
+        errorData.message || `API request failed with status ${response.status}`,
+        response.status
+      );
+    }
+    
+    // For 204 No Content responses
+    if (response.status === 204) {
+      return {} as T;
+    }
+    
+    return await response.json();
+  } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new ApiError('Request timeout', 408);
+    }
+    
+    throw new ApiError(
+      error instanceof Error ? error.message : 'Unknown error occurred',
+      500
+    );
+  }
+}
+
 export const canvasApi = {
   // Add a new canvas (project)
 // Add a new canvas (project)
-addCanvas: async (projectId: string, canvasData: any) => {
-  return apiRequest<any>(
-    `/${projectId}/canvas`,
-    'POST',
-    canvasData
-  );
+addCanvas: async (projectId: string, formData: FormData) => {
+  console.log('Saving canvas with FormData');
+    return apiFormDataRequest<any>(
+      `/${projectId}/canvas`,
+      'POST',
+      formData
+    );
+},
+
+// Get canvas data
+getCanvas: async (projectId: string) => {
+  console.log('Fetching canvas data for project:', projectId);
+  return apiRequest<{
+    nodes: {
+      id: string;
+      node_name: string;
+      node_description: string;
+      x_pos: number;
+      y_pos: number;
+      stride_properties: any;
+      group_id: string | null;
+      style?: any;
+    }[];
+    groups: {
+      id: string;
+      group_name: string;
+      x_pos: number;
+      y_pos: number;
+      parent_group_id: string | null;
+      width: number;
+      height: number;
+      style?: any;
+    }[];
+    edges: {
+      id: string;
+      source_node_id: string;
+      target_node_id: string;
+      edge_label: string;
+      style?: any;
+    }[];
+  }>(`/${projectId}/canvas`, 'GET');
 },
 
 // Update an existing canvas (project)

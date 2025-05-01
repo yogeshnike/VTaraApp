@@ -79,8 +79,8 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
       icon: FileText,
       subItems: menuNodes
     },
-    { id: 'Damage Scenarios', icon: Bomb },
     { id: 'Threat Scenarios', icon: Shield },
+    { id: 'Damage Scenarios', icon: Bomb },
     {
       id: 'Attack Path Analysis',
       icon: Target,

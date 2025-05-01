@@ -95,7 +95,7 @@ export default function GroupNode({ id, data, selected }: NodeProps<GroupNodeDat
       }
 
       // First delete from backend
-      await groupApi.deleteGroup(projectId, id);
+      //await groupApi.deleteGroup(projectId, id);
 
       // Then update UI if backend delete was successful
       deleteNode(id);

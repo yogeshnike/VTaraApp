@@ -27,6 +27,9 @@ import { Edge as ReactFlowEdge } from 'reactflow';
 import { edgeApi,canvasApi } from '../services/api';
 import { formatStrideProperties } from '../constants/stride';
 
+// Add these imports at the top
+import html2canvas from 'html2canvas';
+
 
 
 // Define custom node types
@@ -309,6 +312,27 @@ const handlePaneClick = () => {
     setIsSaving(true);
     try {
       const projectId = window.location.pathname.split('/project/')[1];
+
+       // Get the ReactFlow viewport element
+       const flowElement = document.querySelector('.react-flow') as HTMLElement;
+       if (!flowElement) {
+         throw new Error('Could not find React Flow element');
+       }
+ 
+       // Capture the canvas as an image
+       const canvas = await html2canvas(flowElement, {
+         backgroundColor: '#ffffff', // Set background color
+         scale: 2, // Higher quality
+         logging: false,
+         useCORS: true, // Enable CORS for images
+       });
+ 
+       // Convert the canvas to a blob
+       const blob = await new Promise<Blob>((resolve) => {
+         canvas.toBlob((blob) => {
+           resolve(blob!);
+         }, 'image/png', 1.0);
+       });
   
       // --- Normal Nodes ---
       const normalNodes = nodes
@@ -367,6 +391,8 @@ const handlePaneClick = () => {
         source_node_id: edge.source,
         target_node_id: edge.target,
         edge_label: edge.data?.label || '',
+        source_handle: edge.sourceHandle,
+        target_handle:edge.targetHandle,
         id: edge.id,
         style:edge.style
       }));
@@ -377,8 +403,18 @@ const handlePaneClick = () => {
         edges: formattedEdges,
         timestamp: new Date().toISOString(),
       };
+
+
+      // Create FormData to send both JSON and image
+      const formData = new FormData();
+
+      // Add both JSON and image to FormData
+      formData.append('canvasData', JSON.stringify(canvasData));
+      formData.append('image', blob, 'canvas.png');
+
       console.log(canvasData)
-      await canvasApi.addCanvas(projectId, canvasData);
+      console.log(formData)
+      await canvasApi.addCanvas(projectId, formData);
       alert('Project saved successfully!');
       setLastSaved(new Date());
     } catch (error) {

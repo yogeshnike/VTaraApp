@@ -15,7 +15,20 @@ export function NodeEditForm({ node }: NodeEditFormProps) {
   const { updateNode, deleteNode, setSelectedNode, removeNodeFromGroup, isNodeInGroup } = useStore();
   const [name, setName] = useState(node.data.label);
   const [description, setDescription] = useState(node.data.description);
-  const [properties, setProperties] = useState<string[]>(node.data.properties || []);
+  // Initialize properties from the node's STRIDE properties
+  const [properties, setProperties] = useState<string[]>(() => {
+    // If we have an array already, use it
+    if (Array.isArray(node.data.properties)) {
+      return node.data.properties;
+    }
+    // Otherwise, convert from JSONB format
+    if (node.data.stride_properties) {
+      return Object.entries(node.data.stride_properties)
+        .filter(([_, value]) => value.selected)
+        .map(([key]) => key);
+    }
+    return [];
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,7 +82,8 @@ export function NodeEditForm({ node }: NodeEditFormProps) {
       updateNode(node.id, {
         name,
         description,
-        properties
+        properties,
+        stride_properties: stridePropertiesJson // Add this to keep both formats
       });
 
       // Close form
