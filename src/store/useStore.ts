@@ -11,10 +11,18 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
+interface MenuItem {
+  id: string;
+  label: string;
+  type: 'node' | 'group';
+  children?: MenuItem[];
+}
+
+
 interface FlowState {
   nodes: Node[];
   edges: Edge[];
-  menuNodes: string[];
+  menuNodes: MenuItem[];
   selectedNode: Node | null;
   showConfirmation: boolean;
   nodeToGroup: { nodeId: string; groupId: string } | null;
@@ -45,6 +53,9 @@ interface FlowState {
   refreshNodeDraggableState: () => void;
 
 }
+
+
+
 
 export const useStore = create<FlowState>((set, get) => ({
   nodes: [],
@@ -129,7 +140,7 @@ export const useStore = create<FlowState>((set, get) => ({
     }
   },
   // Update the addNode implementation
-  addNode: ({ id, name, description, properties, position, group_id }) => {
+  addNode: ({ id, name, description, properties, stride_properties,position, group_id }) => {
     const newNode: Node = {
       id,
       type: 'default',
@@ -141,14 +152,41 @@ export const useStore = create<FlowState>((set, get) => ({
         label: name,
         description,
         properties,
+        stride_properties, // Add this line to include the JSONB format
       },
       draggable: true,
       parentNode: group_id
     };
-    set((state) => ({
-      nodes: [...state.nodes, newNode],
-      menuNodes: [...state.menuNodes, name],
-    }));
+    set((state) => {
+      const menuItem: MenuItem = {
+        id,
+        label: name,
+        type: 'node'
+      };
+
+      let updatedMenuNodes = [...state.menuNodes];
+      
+      if (group_id) {
+        // If node has a group, add it as a child of the group menu item
+        updatedMenuNodes = state.menuNodes.map(item => {
+          if (item.id === group_id) {
+            return {
+              ...item,
+              children: [...(item.children || []), menuItem]
+            };
+          }
+          return item;
+        });
+      } else {
+        // If no group, add at root level
+        updatedMenuNodes.push(menuItem);
+      }
+
+      return {
+        nodes: [...state.nodes, newNode],
+        menuNodes: updatedMenuNodes,
+      };
+    });
   },
   addGroupNode: async () => {
     const projectId = window.location.pathname.split('/project/')[1];
@@ -203,9 +241,15 @@ export const useStore = create<FlowState>((set, get) => ({
           }
         })
       };
-      // Update the UI with the new group node
+      // Add group to menu items
       set((state) => ({
         nodes: [...state.nodes, newGroupNode],
+        menuNodes: [...state.menuNodes, {
+          id: groupResponse.id,
+          label: groupResponse.group_name,
+          type: 'group',
+          children: []
+        }]
       }));
 
     } catch (error) {
@@ -233,17 +277,29 @@ export const useStore = create<FlowState>((set, get) => ({
           : node
       );
 
-      // Only update menuNodes if this is not a group node
-      let updatedMenuNodes = state.menuNodes;
-      if (!isGroup && oldName) {
-        // Check if the old name was in menuNodes
-        const oldNameIndex = state.menuNodes.indexOf(oldName);
-        if (oldNameIndex !== -1) {
-          // Replace the old name with the new name
-          updatedMenuNodes = [...state.menuNodes];
-          updatedMenuNodes[oldNameIndex] = name;
-        }
+      // Update menu structure
+    const updatedMenuNodes = state.menuNodes.map(menuItem => {
+      // If this is the node/group being updated
+      if (menuItem.id === nodeId) {
+        return {
+          ...menuItem,
+          label: name,
+          children: menuItem.children // Preserve children if any
+        };
       }
+      // If this is a group, check its children
+      if (menuItem.type === 'group' && menuItem.children) {
+        return {
+          ...menuItem,
+          children: menuItem.children.map(child => 
+            child.id === nodeId 
+              ? { ...child, label: name }
+              : child
+          )
+        };
+      }
+      return menuItem;
+    });
 
       return {
         nodes: updatedNodes,
@@ -352,87 +408,140 @@ export const useStore = create<FlowState>((set, get) => ({
       }
     });
   },*/
-
   deleteNode: async (nodeId) => {
     const projectId = window.location.pathname.split('/project/')[1];
     if (!projectId) return;
-  
-    set((state) => {
-      // First check if this is a group node and has child nodes
+
+    try {
+      // Get current state
+      const state = get();
       const nodeToDelete = state.nodes.find((node) => node.id === nodeId);
-  
+      
+      if (!nodeToDelete) return;
+
       // Find all edges connected to this node
       const edgesToDelete = state.edges.filter(
         (edge) => edge.source === nodeId || edge.target === nodeId
       );
-  
-      // Delete edges from backend
-      edgesToDelete.forEach((edge) => {
-        edgeApi.deleteEdge(projectId, edge.id).catch((error) => {
-          console.error('Failed to delete edge:', error);
-        });
-      });
-  
-      // Filter out the edges connected to the deleted node
-      const remainingEdges = state.edges.filter(
-        (edge) => edge.source !== nodeId && edge.target !== nodeId
-      );
-  
-      if (nodeToDelete?.type === 'group') {
-        // First, update all child nodes to remove their parent reference
+
+      if (nodeToDelete.type === 'group') {
+        // Get all child nodes of the group
         const childNodes = state.nodes.filter(node => node.parentNode === nodeId);
         
-        // Update child nodes in the backend
-        childNodes.forEach(node => {
-          nodeApi.updateNodeGroup(projectId, node.id, null).catch((error) => {
-            console.error('Failed to update node group reference:', error);
-          });
-        });
-  
-        // Create updated nodes array with child nodes having their positions updated
-        // and parent references removed
-        const updatedNodes = state.nodes.map(node => {
-          if (node.parentNode === nodeId) {
-            // Calculate absolute position for the node
-            return {
-              ...node,
-              parentNode: undefined,
-              extent: undefined,
-              position: {
-                x: node.position.x + nodeToDelete.position.x,
-                y: node.position.y + nodeToDelete.position.y
-              }
-            };
-          }
-          return node;
-        }).filter(node => node.id !== nodeId); // Remove the group node
-  
-        // Delete the group from backend
-        groupApi.deleteGroup(projectId, nodeId).catch((error) => {
-          console.error('Failed to delete group:', error);
-        });
-  
-        return {
-          nodes: updatedNodes,
-          edges: remainingEdges,
-          selectedNode: null,
-        };
-      } else {
-         // Regular node deletion logic
-      const filteredNodes = state.nodes.filter((node) => node.id !== nodeId);
-      const updatedMenuNodes = nodeToDelete?.type !== 'group'
-        ? state.menuNodes.filter((name) => name !== nodeToDelete?.data.label)
-        : state.menuNodes;
+        // First, update all child nodes in the backend to remove their group association
+        await Promise.all(childNodes.map(node => 
+          nodeApi.updateNodeGroup(projectId, node.id, null)
+        ));
 
-      return {
-        nodes: filteredNodes,
-        edges: remainingEdges,
-        menuNodes: updatedMenuNodes,
-        selectedNode: null,
-      };
+        // Then delete the group from the backend
+        await groupApi.deleteGroup(projectId, nodeId);
+
+        // Delete all connected edges from backend
+        await Promise.all(edgesToDelete.map(edge => 
+          edgeApi.deleteEdge(projectId, edge.id)
+        ));
+         // After all backend operations are complete, update the UI state
+         set(state => {
+          // Update the nodes in the UI
+          const updatedNodes = state.nodes.map(node => {
+            if (node.parentNode === nodeId) {
+              // Calculate absolute position for the node
+              return {
+                ...node,
+                parentNode: undefined,
+                extent: undefined,
+                position: {
+                  x: node.position.x + (nodeToDelete?.position.x || 0),
+                  y: node.position.y + (nodeToDelete?.position.y || 0)
+                }
+              };
+            }
+            return node;
+          });
+
+          // Remove the group node itself
+          const filteredNodes = updatedNodes.filter((node) => node.id !== nodeId);
+
+          // Filter out the deleted edges
+          const remainingEdges = state.edges.filter(
+            (edge) => edge.source !== nodeId && edge.target !== nodeId
+          );
+
+          // Update menuNodes hierarchy
+          const updateMenuNodesHierarchy = (menuNodes) => {
+            // Find the group being deleted
+            const groupIndex = menuNodes.findIndex(item => item.id === nodeId);
+            
+            if (groupIndex !== -1) {
+              const deletedGroup = menuNodes[groupIndex];
+              const remainingMenuNodes = menuNodes.filter(item => item.id !== nodeId);
+              
+              // If the group had children, move them to the root level
+              if (deletedGroup.children && deletedGroup.children.length > 0) {
+                return [...remainingMenuNodes, ...deletedGroup.children];
+              }
+              
+              return remainingMenuNodes;
+            }
+            // If not found at root level, recursively check in other groups
+            return menuNodes.map(item => {
+              if (item.type === 'group' && item.children) {
+                return {
+                  ...item,
+                  children: updateMenuNodesHierarchy(item.children)
+                };
+              }
+              return item;
+            });
+          };
+
+          return {
+            nodes: filteredNodes,
+            edges: remainingEdges,
+            menuNodes: updateMenuNodesHierarchy(state.menuNodes),
+            selectedNode: null,
+          };
+        });
+      } else {
+        // Regular node deletion
+        // Delete all connected edges from backend
+        await Promise.all(edgesToDelete.map(edge => 
+          edgeApi.deleteEdge(projectId, edge.id)
+        ));
+
+        // Update the UI state for regular node deletion
+        set(state => {
+          const filteredNodes = state.nodes.filter((node) => node.id !== nodeId);
+          const remainingEdges = state.edges.filter(
+            (edge) => edge.source !== nodeId && edge.target !== nodeId
+          );
+          
+          // Update menuNodes for regular nodes
+          const updateMenuNodesHierarchy = (menuNodes) => {
+            return menuNodes.map(item => {
+              if (item.type === 'group' && item.children) {
+                return {
+                  ...item,
+                  children: updateMenuNodesHierarchy(item.children).filter(child => child.id !== nodeId)
+                };
+              }
+              return item;
+            }).filter(item => item.id !== nodeId);
+          };
+
+          return {
+            nodes: filteredNodes,
+            edges: remainingEdges,
+            menuNodes: updateMenuNodesHierarchy(state.menuNodes),
+            selectedNode: null,
+          };
+        });
+      }
+    } catch (error) {
+      console.error('Failed to delete node/group:', error);
+      alert('Failed to delete. Please try again.');
     }
-  });
-},
+  },
 
   setSelectedNode: (node) => {
     set({ selectedNode: node });
@@ -604,7 +713,21 @@ export const useStore = create<FlowState>((set, get) => ({
         return n;
       });
 
-      return { nodes: finalNodes };
+       // Update menu structure
+       const nodeMenuItem = state.menuNodes.find(item => item.id === nodeId);
+       const updatedMenuNodes = state.menuNodes
+         .filter(item => item.id !== nodeId) // Remove from root level
+         .map(item => {
+           if (item.id === groupId) {
+             return {
+               ...item,
+               children: [...(item.children || []), nodeMenuItem!]
+             };
+           }
+           return item;
+         });
+
+      return { nodes: finalNodes,menuNodes: updatedMenuNodes };
     });
 
     // After moving a node to a group, refresh the draggable state
@@ -662,7 +785,38 @@ export const useStore = create<FlowState>((set, get) => ({
           return n;
         });
 
-        return { nodes: finalNodes };
+        
+      // NEW CODE: Update menu structure
+      // Find the node's menu item in the group's children
+      const nodeMenuItem = state.menuNodes.find(item => 
+        item.type === 'group' && 
+        item.id === groupId
+      )?.children?.find(child => child.id === nodeId);
+
+      // Remove node from group's children in menu
+      const updatedMenuNodes = state.menuNodes.map(item => {
+        if (item.id === groupId) {
+          return {
+            ...item,
+            children: (item.children || []).filter(child => child.id !== nodeId)
+          };
+        }
+        return item;
+      });
+
+      // Add the node back to root level in menu
+      if (nodeMenuItem) {
+        updatedMenuNodes.push({
+          id: nodeId,
+          label: node.data.label,
+          type: 'node'
+        });
+      }
+
+      return { 
+        nodes: finalNodes,
+        menuNodes: updatedMenuNodes
+      };
       });
     } catch (error) {
       console.error('Failed to remove node from group:', error);

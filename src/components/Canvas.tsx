@@ -404,6 +404,7 @@ const handlePaneClick = () => {
         timestamp: new Date().toISOString(),
       };
 
+      console.log(canvasData)
 
       // Create FormData to send both JSON and image
       const formData = new FormData();

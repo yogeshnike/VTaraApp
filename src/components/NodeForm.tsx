@@ -77,6 +77,7 @@ const stridePropertiesJson = formatStrideProperties(properties);
         id: response.id, // Use the ID from the backend
         name: response.node_name,
         description,
+        stride_properties: stridePropertiesJson,
         properties,
         position: {
           x: response.x_pos,

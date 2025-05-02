@@ -7,6 +7,7 @@ import { Canvas } from '../components/Canvas';
 import { Footer } from '../components/Footer';
 import { projectApi, canvasApi } from '../services/api';
 import { useStore } from '../store/useStore';
+import { ThreatScenariosTable } from '../components/ThreatScenariosTable';
 
 
 interface ProjectPageProps {
@@ -34,6 +35,24 @@ export function ProjectPage() {
   const location = useLocation();
   const navigate = useNavigate(); // Add this line
 
+ // Add this line to get nodes from the store
+ const nodes = useStore(state => state.nodes);
+
+  
+   // ... existing state ...
+   const [currentView, setCurrentView] = useState<'canvas' | 'threatScenarios'>('canvas');
+
+
+// Add the handler function
+const handleMenuItemClick = (itemId: string) => {
+  console.log('Menu item clicked:', itemId); // For debugging
+  if (itemId === 'Threat Scenarios') {
+    console.log('Current nodes state:', nodes); // Add this line
+    setCurrentView('threatScenarios');
+  } else if (itemId === 'Item Definition') {
+    setCurrentView('canvas');
+  }
+};
 
   // Get store actions
   const {
@@ -99,8 +118,8 @@ export function ProjectPage() {
                 description: node.node_description,
                 // Convert stride_properties from JSONB to array format for the form
                 properties: Object.entries(node.stride_properties || {})
-                .filter(([_, value]) => value.selected)
-                .map(([key]) => key),
+                  .filter(([_, value]) => value.selected)
+                  .map(([key]) => key),
                 stride_properties: node.stride_properties // Keep the original JSONB too
               },
               draggable: true,
@@ -125,14 +144,69 @@ export function ProjectPage() {
             type: 'smoothstep'
           }));
 
+
+          // 3. Create hierarchical menu structure
+          // First create menu items for groups
+          const menuItems = groups.map(group => ({
+            id: group.id,
+            label: group.group_name,
+            type: 'group' as const,
+            children: []
+          }));
+
+          // Then process nodes and organize them into the hierarchy
+          nodes.forEach(node => {
+            const nodeMenuItem = {
+              id: node.id,
+              label: node.node_name,
+              type: 'node' as const
+            };
+
+            if (node.group_id) {
+              // If node belongs to a group, add it to that group's children
+              const parentGroup = menuItems.find(item => item.id === node.group_id);
+              if (parentGroup) {
+                parentGroup.children = parentGroup.children || [];
+                parentGroup.children.push(nodeMenuItem);
+              }
+            } else {
+              // If node doesn't belong to a group, add it at root level
+              menuItems.push(nodeMenuItem);
+            }
+          });
+
+
           // Set the data in the store
           setNodes(allNodes);
           setEdges(transformedEdges);
+          setMenuNodes(menuItems);
 
-          // Create menu nodes from node names
-          const menuNodeNames = nodes.map(node => node.node_name);
-          setMenuNodes(menuNodeNames);
+          /*
+          // In the loadProjectData function, update the menu nodes initialization:
+          const menuNodes = nodes.map(node => ({
+            id: node.id,
+            label: node.node_name,
+            type: node.type === 'group' ? 'group' : 'node' as 'group' | 'node',
+            children: node.type === 'group' ? [] : undefined
+          }));
 
+          // After creating the initial menu items, organize them into hierarchy
+          const organizedMenuNodes = menuNodes.filter(item => {
+            if (item.type === 'node') {
+              const node = nodes.find(n => n.id === item.id);
+              if (node?.parentNode) {
+                const parentMenuItem = menuNodes.find(m => m.id === node.parentNode);
+                if (parentMenuItem) {
+                  parentMenuItem.children = parentMenuItem.children || [];
+                  parentMenuItem.children.push(item);
+                  return false;
+                }
+              }
+            }
+            return true;
+          });
+
+          setMenuNodes(organizedMenuNodes);*/
         } else if (projectId) {
           // If not in state, fetch from API
           const [projectData, canvasData] = await Promise.all([
@@ -179,7 +253,7 @@ export function ProjectPage() {
               draggable: true,
               parentNode: node.group_id
             })),
-           
+
           ];
 
           const transformedEdges = edges.map(edge => ({
@@ -201,11 +275,36 @@ export function ProjectPage() {
             }
           }));
 
+          // 6. Create hierarchical menu structure for API data
+      const menuItems = groups.map(group => ({
+        id: group.id,
+        label: group.group_name,
+        type: 'group' as const,
+        children: []
+      }));
+
+      nodes.forEach(node => {
+        const nodeMenuItem = {
+          id: node.id,
+          label: node.node_name,
+          type: 'node' as const
+        };
+
+        if (node.group_id) {
+          const parentGroup = menuItems.find(item => item.id === node.group_id);
+          if (parentGroup) {
+            parentGroup.children = parentGroup.children || [];
+            parentGroup.children.push(nodeMenuItem);
+          }
+        } else {
+          menuItems.push(nodeMenuItem);
+        }
+      });
+
           setNodes(allNodes);
           setEdges(transformedEdges);
 
-          const menuNodeNames = nodes.map(node => node.node_name);
-          setMenuNodes(menuNodeNames);
+          setMenuNodes(menuItems);
         }
       } catch (error) {
         console.error('Failed to load project:', error);
@@ -291,6 +390,7 @@ export function ProjectPage() {
           isHomePage={false}
           onNavigateToHome={() => { navigate('/home') }}
           projectName={projectName}
+          onMenuItemClick={handleMenuItemClick} // Add this prop
         />
         <div
           className="flex-1 flex flex-col transition-all duration-300"
@@ -301,7 +401,11 @@ export function ProjectPage() {
         >
           <ReactFlowProvider>
             <TopNav />
+            {currentView === 'canvas' ? (
             <Canvas />
+          ) : (
+            <ThreatScenariosTable />
+          )}
           </ReactFlowProvider>
         </div>
       </div>

@@ -26,9 +26,77 @@ interface SidebarProps {
   isHomePage?: boolean;
   onNavigateToHome?: () => void;
   projectName?: string;  // Add this line
+  onMenuItemClick: (itemId: string) => void;
 }
 
-export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome, projectName }: SidebarProps) {
+// Add new interfaces at the top
+interface MenuItem {
+  id: string;
+  label: string;
+  type: 'node' | 'group';
+  children?: MenuItem[];
+}
+
+const MenuItemComponent: React.FC<{
+  item: MenuItem;
+  level: number;
+  isCollapsed: boolean;
+}> = ({ item, level, isCollapsed }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const nodes = useStore(state => state.nodes);
+
+    // Define getNodeProperties function within the component
+    const getNodeProperties = (nodeId: string) => {
+      const node = nodes.find(n => n.id === nodeId);
+      // Return the properties array if it exists, otherwise return empty array
+      return node?.data?.properties || [];
+    };
+
+  if (isCollapsed) return null;
+  
+  // Reduce the margin for each level
+  const marginClass = level === 0 ? 'ml-2' : 'ml-3';
+
+  return (
+    <div className={marginClass}>
+      {item.type === 'group' ? (
+        <div>
+          <div 
+            className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer"
+            onClick={() => setIsExpanded(!isExpanded)}
+          >
+            <ChevronDown
+              size={14}
+              className={`transform transition-transform ${
+                isExpanded ? '' : '-rotate-90'
+              }`}
+            />
+            <span className="text-sm font-medium">{item.label}</span>
+          </div>
+          {isExpanded && item.children && item.children.length > 0 && (
+            <div className="ml-2">
+              {item.children.map(child => (
+                <MenuItemComponent
+                  key={child.id}
+                  item={child}
+                  level={level + 1}
+                  isCollapsed={isCollapsed}
+                />
+              ))}
+            </div>
+                      )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between p-2 hover:bg-gray-100 rounded">
+                        <span className="text-sm">{item.label}</span>
+                        <StrideBadges properties={getNodeProperties(item.id)} />
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+
+export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavigateToHome, projectName, onMenuItemClick }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(isHomePage || isMobile);
   const [expandedItem, setExpandedItem] = useState<string | null>('Item Definition');
   const menuNodes = useStore(state => state.menuNodes);
@@ -77,7 +145,8 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
     {
       id: 'Item Definition',
       icon: FileText,
-      subItems: menuNodes
+      subItems: menuNodes,
+      isHierarchical: true // Add this flag to identify hierarchical menus
     },
     { id: 'Threat Scenarios', icon: Shield },
     { id: 'Damage Scenarios', icon: Bomb },
@@ -93,6 +162,8 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
   ];
 
   const menuItems = isHomePage ? homeMenuItems : projectMenuItems;
+
+  
 
   return (
     <div
@@ -140,7 +211,11 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
         {menuItems.map((item) => (
           <div key={item.id}>
             <button
-              onClick={() => setExpandedItem(expandedItem === item.id ? null : item.id)}
+              onClick={() => {
+                setExpandedItem(expandedItem === item.id ? null : item.id)
+                onMenuItemClick(item.id)
+              }}
+              
               className={clsx(
                 'flex items-center gap-2 w-full p-2 hover:bg-gray-100 rounded mb-1',
                 expandedItem === item.id && 'bg-gray-100'
@@ -149,33 +224,44 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
               <item.icon size={20} className="text-gray-600" />
               {!isCollapsed && (
                 <>
-                  <span className="flex-1 text-left text-sm font-medium text-gray-700">{item.id}</span>
+                  <span className="flex-1 text-left text-sm font-medium text-gray-700">
+                    {item.id}
+                  </span>
                   {!isHomePage && item.subItems && item.subItems.length > 0 && (
                     <ChevronDown size={16} className="text-gray-500" />
                   )}
                 </>
               )}
             </button>
-            {!isHomePage && !isCollapsed && expandedItem === item.id && item.subItems && item.subItems.length > 0 && (
-              <div className="ml-8 mt-1">
-              {item.subItems.map((subItem) => {
-                const properties = item.id === 'Item Definition' ? getNodeProperties(subItem) : [];
-                
-                return (
-                  <div
-                    key={subItem}
-                    className="flex items-center justify-between w-full p-2 text-sm hover:bg-gray-100 rounded text-gray-600"
-                  >
-                    <span>{subItem}</span>
-                    {item.id === 'Item Definition' && properties.length > 0 && (
-                      <div className="ml-2">
-                        <StrideBadges properties={properties} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            {/* Modified submenu rendering */}
+            {!isHomePage && 
+             !isCollapsed && 
+             expandedItem === item.id && 
+             item.subItems && 
+             item.subItems.length > 0 && (
+              <div className="ml-4 mt-1">
+                {item.isHierarchical ? (
+                  // Render hierarchical menu items
+                  item.subItems.map((menuItem: MenuItem) => (
+                    <MenuItemComponent
+                      key={menuItem.id}
+                      item={menuItem}
+                      level={0}
+                      isCollapsed={isCollapsed}
+                    />
+                  ))
+                ) : (
+                  // Render regular menu items
+                  item.subItems.map((subItem) => (
+                    <div
+                      key={typeof subItem === 'string' ? subItem : subItem.id}
+                      className="flex items-center justify-between w-full p-2 text-sm hover:bg-gray-100 rounded text-gray-600"
+                    >
+                      <span>{typeof subItem === 'string' ? subItem : subItem.label}</span>
+                    </div>
+                  ))
+                )}
+              </div>
             )}
           </div>
         ))}
