@@ -8,6 +8,7 @@ import { Footer } from '../components/Footer';
 import { projectApi, canvasApi } from '../services/api';
 import { useStore } from '../store/useStore';
 import { ThreatScenariosTable } from '../components/ThreatScenariosTable';
+import { DamageScenarioTable } from '../components/DamageScenarioTable';
 
 
 interface ProjectPageProps {
@@ -40,7 +41,7 @@ export function ProjectPage() {
 
   
    // ... existing state ...
-   const [currentView, setCurrentView] = useState<'canvas' | 'threatScenarios'>('canvas');
+   const [currentView, setCurrentView] = useState<'canvas' | 'threatScenarios' | 'damageScenarios'>('canvas');
 
 
 // Add the handler function
@@ -51,6 +52,8 @@ const handleMenuItemClick = (itemId: string) => {
     setCurrentView('threatScenarios');
   } else if (itemId === 'Item Definition') {
     setCurrentView('canvas');
+  } else if (itemId === 'Damage Scenarios') {
+    setCurrentView('damageScenarios');
   }
 };
 
@@ -402,10 +405,12 @@ const handleMenuItemClick = (itemId: string) => {
           <ReactFlowProvider>
             <TopNav />
             {currentView === 'canvas' ? (
-            <Canvas />
-          ) : (
-            <ThreatScenariosTable />
-          )}
+              <Canvas />
+            ) : currentView === 'threatScenarios' ? (
+              <ThreatScenariosTable />
+            ) : (
+              <DamageScenarioTable />
+            )}
           </ReactFlowProvider>
         </div>
       </div>
