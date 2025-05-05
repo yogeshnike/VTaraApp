@@ -9,6 +9,8 @@ import { projectApi, canvasApi } from '../services/api';
 import { useStore } from '../store/useStore';
 import { ThreatScenariosTable } from '../components/ThreatScenariosTable';
 import { DamageScenarioTable } from '../components/DamageScenarioTable';
+import { ProjectStatusSelector } from '../components/ProjectStatusSelector';
+
 
 
 interface ProjectPageProps {
@@ -42,6 +44,22 @@ export function ProjectPage() {
   
    // ... existing state ...
    const [currentView, setCurrentView] = useState<'canvas' | 'threatScenarios' | 'damageScenarios'>('canvas');
+
+   // Add new state for project status
+  const [projectStatus, setProjectStatus] = useState<'Not-Started' | 'In-Progress' | 'Completed'>('Not-Started');
+
+  // Add handler for status change
+  const handleStatusChange = async (newStatus: 'Not-Started' | 'In-Progress' | 'Completed') => {
+    try {
+      // Update in backend
+      await projectApi.updateProjectStatus(projectId!, newStatus);
+      // Update local state
+      setProjectStatus(newStatus);
+    } catch (error) {
+      console.error('Failed to update project status:', error);
+      // You might want to show an error toast here
+    }
+  };
 
 
 // Add the handler function
@@ -79,6 +97,7 @@ const handleMenuItemClick = (itemId: string) => {
         const state = location.state as ProjectState;
         if (state?.projectName && state?.canvasData) {
           setProjectName(state.projectName);
+          setProjectStatus(state.projectStatus || 'Not-Started'); // Add this line
 
           // Initialize store with canvas data
           const { nodes, edges, groups } = state.canvasData;
@@ -218,7 +237,7 @@ const handleMenuItemClick = (itemId: string) => {
           ]);
 
           setProjectName(projectData.name);
-
+          setProjectStatus(projectData.status || 'Not-Started'); // Add this line
           // Initialize store with canvas data (same transformation as above)
           const { nodes, edges, groups } = canvasData;
 
@@ -342,35 +361,6 @@ const handleMenuItemClick = (itemId: string) => {
     setSidebarCollapsed(collapsed);
   };
 
-  // Load project data
-  /* useEffect(() => {
-     const loadProjectData = async () => {
-       setIsLoading(true);
-       setError(null);
-       
-       try {
-         // First check if we have the project name in the location state
-         const state = location.state as ProjectState;
-         console.log('State:', state);
-         if (state?.projectName) {
-           setProjectName(state.projectName);
-         } else if (projectId) {
-           // If not in state, fetch from API
-           const projectData = await projectApi.getProject(projectId);
-           setProjectName(projectData.name);
-         }
-       } catch (error) {
-         console.error('Failed to load project:', error);
-         setError('Failed to load project details');
-       } finally {
-         setIsLoading(false);
-       }
-     };
- 
-     loadProjectData();
-   }, [projectId, location.state]);
-   */
-
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen">
@@ -402,6 +392,15 @@ const handleMenuItemClick = (itemId: string) => {
             width: isMobile ? '100%' : 'auto'
           }}
         >
+        <div className="flex items-center justify-between p-4 border-b">
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl font-semibold text-gray-800">{projectName}</h1>
+              <ProjectStatusSelector
+                currentStatus={projectStatus}
+                onStatusChange={handleStatusChange}
+              />
+            </div>
+          </div>
           <ReactFlowProvider>
             <TopNav />
             {currentView === 'canvas' ? (

@@ -135,6 +135,13 @@ export const projectApi = {
     console.log(`Updating project ${projectId} with data:`, projectData);
     return apiRequest<ProjectResponse>(`/projects/${projectId}`, 'PUT', projectData);
   },
+
+  updateProjectStatus: (projectId: string, status: 'Not-Started' | 'In-Progress' | 'Completed') => {
+    return apiRequest(`/projects/${projectId}/status`, 
+        'PATCH',  // Pass method as second parameter
+        { status } // Pass data as third parameter
+    );
+  },
   
   // Delete a project
   deleteProject: (projectId: string): Promise<void> => {
