@@ -31,9 +31,10 @@ interface ThreatScenario {
 }
 
 export function ThreatScenariosTable() {
-  const [threatScenarios, setThreatScenarios] = useState<ThreatScenario[]>([]);
+  const threatScenarios = useStore(state => state.threatScenarios);
+  const setThreatScenarios = useStore(state => state.setThreatScenarios);
   const nodes = useStore(state => state.nodes);
-
+  
   
 
    // Function to get group name for a node
@@ -50,7 +51,7 @@ export function ThreatScenariosTable() {
       const generatedScenarios: ThreatScenario[] = [];
       let snoCounter = 1;
   
-      console.log(nodes)
+      console.log('Nodes changed, regenerating scenarios:', nodes);
 
       nodes.forEach(node => {
         if (node.type === 'default' && node.data.stride_properties) {
@@ -93,7 +94,7 @@ export function ThreatScenariosTable() {
       console.log(generatedScenarios)
   
       setThreatScenarios(generatedScenarios);
-    }, [nodes]);
+    }, [nodes, setThreatScenarios]);
 
 
   const handleEdit = (id: string) => {

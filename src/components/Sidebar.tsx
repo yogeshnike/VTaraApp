@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Badge } from './ui/badge';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -104,6 +105,9 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
   // Add this to get nodes from the store
   const nodes = useStore(state => state.nodes);
 
+  // Add this line to get threatScenarios from the store
+  const threatScenarios = useStore(state => state.threatScenarios);
+
   // Modify the subItems rendering in the menu items section
   const getNodeProperties = (nodeName: string) => {
     const node = nodes.find(n => n.data.label === nodeName);
@@ -141,14 +145,14 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
     { id: 'Library', icon: Library }
   ];
 
-  const projectMenuItems = [
+  const projectMenuItems = useMemo(() => [
     {
       id: 'Item Definition',
       icon: FileText,
       subItems: menuNodes,
       isHierarchical: true // Add this flag to identify hierarchical menus
     },
-    { id: 'Threat Scenarios', icon: Shield },
+    { id: 'Threat Scenarios', icon: Shield, badge: threatScenarios?.length || 0  },
     { id: 'Damage Scenarios', icon: Bomb },
     {
       id: 'Attack Path Analysis',
@@ -159,7 +163,7 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
     { id: 'Catalogs', icon: ClipboardList },
     { id: 'Risk Determination and Risk Treatment', icon: BarChart2 },
     { id: 'Reporting', icon: ClipboardList }
-  ];
+  ], [menuNodes, threatScenarios]); 
 
   const menuItems = isHomePage ? homeMenuItems : projectMenuItems;
 
@@ -227,6 +231,12 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
                   <span className="flex-1 text-left text-sm font-medium text-gray-700">
                     {item.id}
                   </span>
+                  {/* Add badge if it exists */}
+                  {item.badge !== undefined && (
+                    <Badge variant="secondary" className="ml-2">
+                      {item.badge}
+                    </Badge>
+                  )}
                   {!isHomePage && item.subItems && item.subItems.length > 0 && (
                     <ChevronDown size={16} className="text-gray-500" />
                   )}

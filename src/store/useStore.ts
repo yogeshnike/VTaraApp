@@ -3,6 +3,7 @@ import { Node, Edge, Connection, applyNodeChanges, applyEdgeChanges, addEdge, XY
 import { useEffect } from 'react';
 import { groupApi, nodeApi, edgeApi } from '../services/api';
 import { useParams } from 'react-router-dom';
+import { STRIDE_MAPPING } from '../utils/strideUtils'; // Add this import
 
 import CustomEdge from '../components/CustomEdge';
 
@@ -30,6 +31,8 @@ interface FlowState {
   onEdgesChange: (changes: any) => void;
   updateEdgeLabel: (edgeId: string, label: string) => Promise<void>;
   onConnect: (connection: Connection) => void;
+  threatScenarios: ThreatScenario[];
+  setThreatScenarios: (scenarios: ThreatScenario[]) => void;
   //addNode: (node: { name: string; description: string; properties: string[] }) => void;
   addNode: (node: {
     id: string;
@@ -39,6 +42,7 @@ interface FlowState {
     position: { x: number; y: number };
     group_id: string | null;
   }) => void;
+  getNodeGroupName: (nodeId: string) => string;
   addGroupNode: () => void;
   updateNode: (nodeId: string, data: { name: string; description: string; properties: string[] }) => void;
   deleteNode: (nodeId: string) => void;
@@ -64,10 +68,19 @@ export const useStore = create<FlowState>((set, get) => ({
   selectedNode: null,
   showConfirmation: false,
   nodeToGroup: null,
+  threatScenarios: [],
+  setThreatScenarios: (scenarios) => set({ threatScenarios: scenarios }),
   onNodesChange: (changes) => {
     set({
       nodes: applyNodeChanges(changes, get().nodes),
     });
+  },
+  getNodeGroupName: (nodeId: string) => {
+    const node = get().nodes.find(n => n.id === nodeId);
+    if (!node?.parentNode) return 'N/A';
+    
+    const groupNode = get().nodes.find(n => n.id === node.parentNode);
+    return groupNode?.data.label || 'N/A';
   },
   onEdgesChange: (changes) => {
     set({
@@ -140,7 +153,7 @@ export const useStore = create<FlowState>((set, get) => ({
     }
   },
   // Update the addNode implementation
-  addNode: ({ id, name, description, properties, stride_properties,position, group_id }) => {
+  addNode: ({ id, name, description, properties, stride_properties, position, group_id }) => {
     const newNode: Node = {
       id,
       type: 'default',
@@ -257,7 +270,7 @@ export const useStore = create<FlowState>((set, get) => ({
       alert('Failed to create group. Please try again.');
     }
   },
-  updateNode: async (nodeId, { name, description, properties }) => {
+  updateNode: async (nodeId, { name, description, properties,stride_properties }) => {
     set((state) => {
       const node = state.nodes.find((node) => node.id === nodeId);
       const oldName = node?.data.label;
@@ -271,11 +284,48 @@ export const useStore = create<FlowState>((set, get) => ({
               ...node.data,
               label: name,
               description,
-              properties
+              properties,
+              stride_properties: stride_properties || node.data.stride_properties // Preserve or update STRIDE properties
             }
           }
           : node
       );
+
+     // Generate new threat scenarios immediately after node update
+     const newThreatScenarios: ThreatScenario[] = [];
+     let snoCounter = 1;
+
+     updatedNodes.forEach(node => {
+      if (node.type === 'default' && node.data.stride_properties) {
+        Object.entries(node.data.stride_properties).forEach(([strideName, strideData]) => {
+          if (strideData.selected) {
+            const strideInfo = STRIDE_MAPPING[strideName];
+            
+            if (strideInfo) {
+              const scenario: ThreatScenario = {
+                id: `${node.id}-${strideName}-${snoCounter}`,
+                sno: snoCounter++,
+                name: strideInfo.defaultScenario(node.data.label),
+                type: strideName.charAt(0),
+                component: get().getNodeGroupName(node.id),
+                asset: node.data.label,
+                damageScenario: 'N/A',
+                impact: 'Medium',
+                feasibility: 'Medium',
+                currentRisk: 'N/A',
+                initialRisk: 'N/A',
+                cybersecurityGoals: strideInfo.defaultGoals,
+                attackTrees: strideInfo.defaultAttackTrees,
+                attackPath: strideInfo.defaultAttackPath,
+                nodeId: node.id
+              };
+              newThreatScenarios.push(scenario);
+            }
+          }
+        });
+      }
+    });
+
 
       // Update menu structure
     const updatedMenuNodes = state.menuNodes.map(menuItem => {
@@ -305,8 +355,14 @@ export const useStore = create<FlowState>((set, get) => ({
         nodes: updatedNodes,
         menuNodes: updatedMenuNodes,
         selectedNode: null,
+        threatScenarios: newThreatScenarios 
       };
     });
+    // After updating nodes, trigger a recalculation of threat scenarios in the ThreatScenariosTable component
+    // This way we keep the STRIDE_MAPPING logic in one place
+    const updatedNodes = get().nodes;
+    // You can dispatch a custom event to notify that nodes were updated
+    window.dispatchEvent(new CustomEvent('nodesUpdated'));
   },
   /*deleteNode: (nodeId) => {
     set((state) => {
