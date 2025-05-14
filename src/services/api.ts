@@ -1,5 +1,6 @@
 import config from '../config/config';
 import { StridePropertiesJSON } from '../constants/stride';
+import { DamageScenario } from '../types/damageScenario';
 
 /**
  * API Service
@@ -442,4 +443,94 @@ deleteCanvas: async (projectId: string) => {
     'DELETE'
   );
 },
+};
+
+
+// Add these interfaces
+interface Configuration {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+interface ConfigurationCreateRequest {
+  name: string;
+}
+
+// Add this to your existing api.ts
+export const configurationApi = {
+  getConfigurations: () => {
+    return apiRequest<Configuration[]>('/configurations', 'GET');
+  },
+  getConfiguration: (id: string) => {
+    return apiRequest<Configuration>(`/configurations/${id}`, 'GET');
+  },
+  createConfiguration: (data: ConfigurationCreateRequest) => {
+    return apiRequest<Configuration>('/configurations', 'POST', data);
+  },
+
+  updateConfiguration: (id: string, data: ConfigurationCreateRequest) => {
+    return apiRequest<Configuration>(`/configurations/${id}`, 'PUT', data);
+  },
+
+  deleteConfiguration: (id: string) => {
+    return apiRequest(`/configurations/${id}`, 'DELETE');
+  }
+};
+
+
+// Add after other interfaces
+export interface DamageScenarioCreateRequest {
+  name: string;
+  justification: string;
+  securityProperty: string;
+  controlability: string;
+  corporateFlag: string;
+  configId?: string | null;
+  roadUsers: {
+    overall: string;
+    values: {
+      safety: { value: string; justification: string };
+      privacy: { value: string; justification: string };
+      financial: { value: string; justification: string };
+      operational: { value: string; justification: string };
+    };
+  };
+  business: {
+    overall: string;
+    values: {
+      ip: { value: string; justification: string };
+      financial: { value: string; justification: string };
+      brand: { value: string; justification: string };
+    };
+  };
+}
+
+export const damageScenarioApi = {
+  // Create a new damage scenario
+  createDamageScenario: (data: DamageScenarioCreateRequest): Promise<DamageScenario> => {
+    console.log('Creating damage scenario with data:', data);
+    return apiRequest<DamageScenario>('/damage-scenarios', 'POST', data);
+  },
+
+  // Get all damage scenarios
+  getDamageScenarios: (configId?: string): Promise<DamageScenario[]> => {
+    const endpoint = configId ? `/damage-scenarios?configId=${configId}` : '/damage-scenarios';
+    return apiRequest<DamageScenario[]>(endpoint);
+  },
+
+  // Get a specific damage scenario
+  getDamageScenario: (id: string): Promise<DamageScenario> => {
+    return apiRequest<DamageScenario>(`/damage-scenarios/${id}`);
+  },
+
+  // Update a damage scenario
+  updateDamageScenario: (id: string, data: Partial<DamageScenarioCreateRequest>): Promise<DamageScenario> => {
+    return apiRequest<DamageScenario>(`/damage-scenarios/${id}`, 'PUT', data);
+  },
+
+  // Delete a damage scenario
+  deleteDamageScenario: (id: string): Promise<void> => {
+    return apiRequest<void>(`/damage-scenarios/${id}`, 'DELETE');
+  }
 };

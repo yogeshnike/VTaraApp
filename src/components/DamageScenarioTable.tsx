@@ -7,10 +7,21 @@ import {
   TableHeader, 
   TableRow 
 } from './ui/table';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from './ui/dialog';
+import { Edit, Trash2, Plus, Library } from 'lucide-react';
 import { Button } from './ui/button';
 import { DamageScenarioForm } from './DamageScenarioForm';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { DamageScenario, DamageScenarioTableMode } from '../types/damageScenario';
+import { damageScenarioApi } from '../services/api';
+
+
 
 
 // Helper function to get impact level color and short text
@@ -301,38 +312,21 @@ const BusinessGroup: React.FC<{
 
 
 
-interface DamageScenario {
-    id: string;
-    name: string;
-    justification: string; // Add justification to interface
-    securityProperty: string;
-    controlability: string;
-    corporateFlag: string;
-    roadUsers: {
-      overall: string;
-      values: {
-        safety: { value: string; justification: string };
-        privacy: { value: string; justification: string };
-        financial: { value: string; justification: string };
-        operational: { value: string; justification: string };
-      };
-    };
-    business: {
-      overall: string;
-      values: {
-        ip: { value: string; justification: string };
-        financial: { value: string; justification: string };
-        brand: { value: string; justification: string };
-      };
-    };
-    createdAt: string;
-    updatedAt: string;
-  }
+// Update the component props
+interface DamageScenarioTableProps {
+  damageScenarios: DamageScenario[];
+  onUpdate: (scenarios: DamageScenario[]) => void;
+  mode: DamageScenarioTableMode;  // Add this prop
+}
 
-export function DamageScenarioTable() {
-  const [damageScenarios, setDamageScenarios] = useState<DamageScenario[]>([]);
+
+export function DamageScenarioTable({damageScenarios, onUpdate, mode }: DamageScenarioTableProps) {
+  //const [damageScenarios, setDamageScenarios] = useState<DamageScenario[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showConfigLibrary, setShowConfigLibrary] = useState(false);
   const [editingScenario, setEditingScenario] = useState<DamageScenario | null>(null);
+  const [configScenarios, setConfigScenarios] = useState<DamageScenario[]>([]);
+
 
   const roadUserDescriptions = {
     safety: 'Safety Impact',
@@ -347,18 +341,77 @@ export function DamageScenarioTable() {
     brand: 'Loss of Brand Reputation'
   };
 
+
+  // Add this helper function at the top of the file
+const getSecurityPropertyShort = (property: string) => {
+  switch (property) {
+    case 'Confidentiality(C)':
+      return 'C';
+    case 'Integrity(I)':
+      return 'I';
+    case 'Availability(A)':
+      return 'A';
+    default:
+      return 'N/A';
+  }
+};
+
+const getSecurityPropertyFull = (property: string) => {
+  switch (property) {
+    case 'Confidentiality(C)':
+      return 'Confidentiality';
+    case 'Integrity(I)':
+      return 'Integrity';
+    case 'Availability(A)':
+      return 'Availability';
+    default:
+      return 'Not Applicable';
+  }
+};
+
   const handleEdit = (scenario: DamageScenario) => {
     setEditingScenario(scenario);
     setShowAddForm(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this damage scenario?')) {
-      setDamageScenarios(scenarios => scenarios.filter(s => s.id !== id));
+      try {
+        await damageScenarioApi.deleteDamageScenario(id);
+        onUpdate(damageScenarios.filter(s => s.id !== id));
+      } catch (error) {
+        console.error('Failed to delete damage scenario:', error);
+        alert('Failed to delete damage scenario. Please try again.');
+      }
     }
   };
 
-  const handleFormSubmit = (formData: any) => {
+  // Add this function to fetch config scenarios
+  const fetchConfigScenarios = async () => {
+    try {
+      // Replace this with your actual API call
+      const response = await fetch('/api/config/damage-scenarios');
+      const data = await response.json();
+      setConfigScenarios(data);
+    } catch (error) {
+      console.error('Failed to fetch config scenarios:', error);
+    }
+  };
+
+  // Add this function to handle adding a scenario from config
+  const handleAddFromConfig = (scenario: DamageScenario) => {
+    const newScenario = {
+      ...scenario,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    onUpdate([...damageScenarios, newScenario]);
+    setShowConfigLibrary(false);
+  };
+
+
+  /*const handleFormSubmit = (formData: any) => {
     if (editingScenario) {
       // Handle edit
       setDamageScenarios(scenarios =>
@@ -380,41 +433,77 @@ export function DamageScenarioTable() {
     }
     setShowAddForm(false);
     setEditingScenario(null);
+  };*/
+
+  const handleFormSubmit = async (formData: any) => {
+    try {
+      if (editingScenario) {
+        // Handle edit
+        const updatedScenario = await damageScenarioApi.updateDamageScenario(
+          editingScenario.id,
+          formData
+        );
+        onUpdate(
+          damageScenarios.map(scenario =>
+            scenario.id === editingScenario.id ? updatedScenario : scenario
+          )
+        );
+      }
+      setShowAddForm(false);
+      setEditingScenario(null);
+    } catch (error) {
+      console.error('Failed to update damage scenario:', error);
+      alert('Failed to update damage scenario. Please try again.');
+    }
   };
+
 
   const handleFormClose = () => {
     setShowAddForm(false);
     setEditingScenario(null);
   };
 
+
+
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Damage Scenarios</h2>
-        <Button 
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          Add Damage Scenario
-        </Button>
+        <div className="flex gap-4">
+          {/* Different action buttons based on mode */}
+          {mode === 'project' ? (
+            <>
+              {/* Project mode buttons */}
+              <Dialog open={showConfigLibrary} onOpenChange={setShowConfigLibrary}>
+                {/* ... existing dialog code ... */}
+              </Dialog>
+              <Button onClick={() => setShowAddForm(true)} className="flex items-center gap-2">
+                <Plus size={16} />
+                Create New Scenario
+              </Button>
+            </>
+          ) : (
+            <Button onClick={() => setShowAddForm(true)} className="flex items-center gap-2">
+              <Plus size={16} />
+              Add New Damage Scenario
+            </Button>
+          )}
+        </div>
       </div>
-
-      {showAddForm && (
-        <DamageScenarioForm
-          onSubmit={handleFormSubmit}
-          onClose={handleFormClose}
-          initialData={editingScenario}
-        />
-      )}
 
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-16">S.No</TableHead> {/* Added S.No column */}
-              <TableHead className="w-[200px]">Damage Scenario</TableHead> {/* Fixed width */}
-              <TableHead className="w-[200px]">Justification</TableHead>
+              {/* Common columns with consistent styling */}
+              <TableHead className="w-16 text-center">S.No</TableHead>
+              <TableHead className="w-[300px] min-w-[300px]">
+                <div className="font-semibold">Damage Scenario</div>
+              </TableHead>
+              <TableHead className="w-[300px] min-w-[300px]">
+                <div className="font-semibold">Justification</div>
+                </TableHead>
               <TableHead>Security Property</TableHead>
               <TableHead>Controlability</TableHead>
               <TableHead>Corporate Flag</TableHead>
@@ -425,63 +514,118 @@ export function DamageScenarioTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {damageScenarios.map((scenario,index) => (
-              <TableRow key={scenario.id}>
-                 <TableCell className="text-center align-top">
-                  {index + 1}
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="w-[200px] whitespace-pre-wrap break-words text-[14px]">
-                    {scenario.name}
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="w-[200px] whitespace-pre-wrap break-words text-[14px]">
-                    {scenario.justification}
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">{scenario.securityProperty}</TableCell>
-                <TableCell className="align-top">{scenario.controlability}</TableCell>
-                <TableCell className="align-top">{scenario.corporateFlag}</TableCell>
-                <TableCell className="py-2 align-top">
-                  <RoadUsersGroup
-                    overall={scenario.roadUsers.overall}
-                    values={scenario.roadUsers.values}
-                  />
-                </TableCell>
-                <TableCell className="py-2 align-top">
-                  <BusinessGroup
-                    overall={scenario.business.overall}
-                    values={scenario.business.values}
-                  />
-                </TableCell>
-                <TableCell className="align-top">
-                  <div>
-                    <div className="text-xs text-gray-500">Created: {new Date(scenario.createdAt).toLocaleDateString()}</div>
-                    <div className="text-xs text-gray-500">Updated: {new Date(scenario.updatedAt).toLocaleDateString()}</div>
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEdit(scenario)}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(scenario.id)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+            {damageScenarios.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={10} className="text-center py-8">
+                  No damage scenarios found. {mode === 'project' ? 'Add one from the config library or create new.' : 'Add one to get started.'}
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              damageScenarios.map((scenario, index) => {
+                const roadUsers = typeof scenario.road_users === 'string' 
+                  ? JSON.parse(scenario.road_users) 
+                  : scenario.road_users;
+
+                const business = typeof scenario.business === 'string' 
+                  ? JSON.parse(scenario.business) 
+                  : scenario.business;
+
+                return (
+                  <TableRow key={scenario.id}>
+                    {/* Common columns with consistent styling */}
+                    <TableCell className="text-center align-top">
+                      {index + 1}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="w-[300px] min-w-[300px] p-2">
+                        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed max-h-[150px] overflow-y-auto">
+                          {scenario.name}
+                        </div>
+                      </div>
+                      </TableCell>
+                    <TableCell className="align-top">
+                      <div className="w-[300px] min-w-[300px] p-2">
+                        <div className="whitespace-pre-wrap break-words text-sm leading-relaxed max-h-[150px] overflow-y-auto">
+                          {scenario.justification}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-blue-100 text-blue-700 font-medium text-sm cursor-help">
+                              {getSecurityPropertyShort(scenario.security_property)}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{getSecurityPropertyFull(scenario.security_property)}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </TableCell>
+                    <TableCell className="align-top">{scenario.controlability}</TableCell>
+                    <TableCell className="align-top">{scenario.corporate_flag}</TableCell>
+                    <TableCell className="py-2 align-top">
+                      <RoadUsersGroup
+                        overall={roadUsers.overall}
+                        values={roadUsers.values}
+                      />
+                    </TableCell>
+                    <TableCell className="py-2 align-top">
+                      <BusinessGroup
+                        overall={business.overall}
+                        values={business.values}
+                      />
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div>
+                        <div className="text-xs text-gray-500">
+                          Created: {new Date(scenario.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Updated: {new Date(scenario.updated_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="align-top">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(scenario)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(scenario.id)}
+                          className="text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
+       {/* Form Modal */}
+       {showAddForm && (
+        <DamageScenarioForm
+          onSubmit={handleFormSubmit}
+          onClose={() => {
+            setShowAddForm(false);
+            setEditingScenario(null);
+          }}
+          initialData={editingScenario}
+          mode={mode}
+        />
+      )}
     </div>
   );
+
+  
+
 }

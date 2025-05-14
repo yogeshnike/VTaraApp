@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
+import { DamageScenario, DamageScenarioTableMode } from '../types/damageScenario';
+
 
 interface DamageScenarioFormProps {
   onSubmit: (data: any) => void;
   onClose: () => void;
-  initialData?: any;
+  initialData?: DamageScenario | null;
+  mode: DamageScenarioTableMode;
 }
 
 const SECURITY_PROPERTIES = ['N/A', 'Confidentiality(C)', 'Integrity(I)', 'Availability(A)'] as const;
@@ -36,7 +39,7 @@ interface BusinessValues {
   brand: ImpactValue;    // Loss of brand reputation
 }
 
-export function DamageScenarioForm({ onSubmit, onClose, initialData }: DamageScenarioFormProps) {
+export function DamageScenarioForm({ onSubmit, onClose, initialData, mode }: DamageScenarioFormProps) {
     const [formData, setFormData] = useState({
         name: initialData?.name || '',
         justification: initialData?.justification || '',
@@ -134,7 +137,10 @@ export function DamageScenarioForm({ onSubmit, onClose, initialData }: DamageSce
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    // If in config mode, ensure configId is set
+    
+      onSubmit(formData);
+    
   };
 
   return (

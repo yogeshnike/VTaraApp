@@ -10,6 +10,7 @@ import { useStore } from '../store/useStore';
 import { ThreatScenariosTable } from '../components/ThreatScenariosTable';
 import { DamageScenarioTable } from '../components/DamageScenarioTable';
 import { ProjectStatusSelector } from '../components/ProjectStatusSelector';
+import { DamageScenario } from '../types/damageScenario';
 
 
 
@@ -27,12 +28,14 @@ interface ProjectState {
   };
 }
 
+
 export function ProjectPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [projectName, setProjectName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [damageScenarios, setDamageScenarios] = useState<DamageScenario[]>([]);
 
   const { projectId } = useParams<{ projectId: string }>();
   const location = useLocation();
@@ -61,6 +64,16 @@ export function ProjectPage() {
     }
   };
 
+  const handleUpdate = (updatedScenarios: DamageScenario[]) => {
+    setDamageScenarios(updatedScenarios);
+  };
+
+
+
+  // Add this handler function
+const handleDamageScenariosUpdate = (updatedScenarios: DamageScenario[]) => {
+  setDamageScenarios(updatedScenarios);
+};
 
 // Add the handler function
 const handleMenuItemClick = (itemId: string) => {
@@ -408,7 +421,11 @@ const handleMenuItemClick = (itemId: string) => {
             ) : currentView === 'threatScenarios' ? (
               <ThreatScenariosTable />
             ) : (
-              <DamageScenarioTable />
+              <DamageScenarioTable
+                  damageScenarios={damageScenarios}
+                  onUpdate={handleUpdate}
+                  mode="project"
+                />
             )}
           </ReactFlowProvider>
         </div>

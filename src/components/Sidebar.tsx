@@ -118,7 +118,7 @@ export function Sidebar({ onToggle, isMobile = false, isHomePage = false, onNavi
     if (isMobile) {
       setIsCollapsed(true);
     } else if (isHomePage) {
-      setIsCollapsed(true);
+      setIsCollapsed(false);
     }
   }, [isMobile, isHomePage]);
 
